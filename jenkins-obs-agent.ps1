@@ -78,7 +78,7 @@ Write-Host " Jenkins: $JenkinsUrl | Docker: yadinstore-jenkins (label=com.docker
 Write-Host "============================================" -ForegroundColor Cyan
 Write-Host "Batch cada ${BatchIntervalSec}s, snapshot ${SnapshotIntervalSec}s. Ctrl+C para salir." -ForegroundColor Green
 if ($Token) { Write-Host " Token auth: ON" -ForegroundColor Yellow } else { Write-Host " Token auth: OFF (demo)" -ForegroundColor DarkGray }
-if ($jenkinsHeaders.Count -gt 0) { Write-Host " Jenkins auth: ON (Basic $JenkinsUser:***, timeout 10s)" -ForegroundColor Yellow } else { Write-Host " Jenkins auth: OFF (anon, timeout 10s) — si da 403 usa -JenkinsUser/-JenkinsToken o env JENKINS_TOKEN" -ForegroundColor DarkGray }
+if ($jenkinsHeaders.Count -gt 0) { Write-Host " Jenkins auth: ON (Basic $JenkinsUser`:***, timeout 10s)" -ForegroundColor Yellow } else { Write-Host " Jenkins auth: OFF (anon, timeout 10s) — si da 403 usa -JenkinsUser/-JenkinsToken o env JENKINS_TOKEN" -ForegroundColor DarkGray }
 
 $hasDocker = $false
 if (Get-Command docker -ErrorAction SilentlyContinue) {
