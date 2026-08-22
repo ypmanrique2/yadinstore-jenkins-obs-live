@@ -1,0 +1,34 @@
+# ================================================================
+# render.yaml — Blueprint Render (free tier) para yadinstore-jenkins-obs-live
+#
+# Clone de yadinstore-cicd-demo/render.yaml:15-26 adaptado a
+# Jenkins live. Zero dependencies: node server.js
+#
+# Deploy:
+#   1. Push repo a GitHub (yadinstore-jenkins-obs-live o monorepo).
+#   2. Render > New > Blueprint > elegir repo.
+#   3. Setear DOCKER_LIVE_TOKEN en dashboard (sync:false) y pasarlo
+#      como -Token al agente: .\jenkins-obs-agent.ps1 -Token "xxx"
+#
+# healthCheckPath: /api/jenkins/live (público, no requiere token)
+# CORS Pages-only: https://ypmanrique2.github.io (no *)
+# Rate-limit: 10/min/IP en POSTs
+# ================================================================
+
+services:
+  - type: web
+    name: yadinstore-jenkins-obs-live
+    runtime: node
+    plan: free
+    # Si este archivo vive en repo dedicado yadinstore-jenkins-obs-live,
+    # rootDir no es necesario. Si vive en monorepo, descomenta:
+    # rootDir: yadinstore-jenkins-obs-live
+    buildCommand: ""          # zero dependencies — no build
+    startCommand: node server.js
+    healthCheckPath: /api/jenkins/live
+    autoDeploy: true
+    envVars:
+      - key: DOCKER_LIVE_TOKEN
+        sync: false           # token para POSTs del agente (x-live-token), GETs públicos
+      - key: NODE_ENV
+        value: production

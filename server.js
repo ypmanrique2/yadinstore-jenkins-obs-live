@@ -1,0 +1,245 @@
+// ================================================================
+// yadinstore-jenkins-obs-live/server.js — Zero-dependency Node HTTP
+//
+// Clone de `yadinstore-cicd-demo/docker-live/server.js:22-116`
+// adaptado para Jenkins + obs live prod (free tier Render).
+//
+// Patrón BE-KD: agente local (jenkins-obs-agent.ps1) lee
+// `docker events --filter container=yadin-jenkins` + Jenkins
+// http://localhost:8081/api/json (queue/executors/jobs) + metrics
+// dummy `outbox_pending` y POSTea acá; dashboard pollea
+// GET /api/jenkins/live cada 2s.
+//
+// 3 streams futuros (estructura lista, datos dummy ok):
+//   - jenkins: queue, executors, jobs lastBuild
+//   - docker: containers (docker ps) + events container
+//   - metrics: obs.outboxPending, obs.kafkaPublishErrors
+//
+// Endpoints:
+//   POST /api/jenkins/events    batch|single build/docker events (token)
+//   POST /api/jenkins/snapshot  { jenkins, containers, obs } (token)
+//   POST /api/jenkins/metrics   alias obs.metrics (token)
+//   POST /api/obs/metrics       alias (token)
+//   GET  /api/jenkins/live      -> {events,containers,jenkins,obs,lastSeen,serverTime} (public)
+//   GET  /jenkins-dashboard.html (+ /) -> dashboard static (public)
+//   OPTIONS 204 CORS Pages-only
+//
+// Auth: si DOCKER_LIVE_TOKEN (o JENKINS_LIVE_TOKEN) definida, POSTs
+// exigen header `x-live-token` timingSafeEqual. GETs públicos.
+// CORS prod Pages-only (no *): https://ypmanrique2.github.io
+// Rate-limit POST 10/min/IP (429 Retry-After).
+// ================================================================
+
+const http = require('http');
+const fs = require('fs');
+const path = require('path');
+const crypto = require('crypto');
+
+const PORT = process.env.PORT || 3000;
+const TOKEN = process.env.DOCKER_LIVE_TOKEN || process.env.JENKINS_LIVE_TOKEN || process.env.JENKINS_OBS_TOKEN || '';
+const MAX_EVENTS = 200;
+const RATE_LIMIT_MAX = 10; // POSTs por minuto por IP
+const RATE_WINDOW_MS = 60 * 1000;
+const ALLOWED_ORIGIN = 'https://ypmanrique2.github.io';
+
+// --- Estado en memoria (ring + 3 streams) ---
+const state = {
+  events: [], // ring MAX_EVENTS: docker events + jenkins builds
+  containers: [], // último snapshot docker ps
+  jenkins: { queue: 0, executors: { busy: 0, idle: 0 }, jobs: [] }, // stream jenkins
+  obs: { outboxPending: 0, kafkaPublishErrors: 0, serverTime: null }, // stream metrics dummy
+  lastSeen: null, // ISO del último POST del agente
+};
+
+const rateMap = new Map(); // ip -> { count, resetAt }
+
+function json(res, code, obj, extraHeaders) {
+  const headers = { 'Content-Type': 'application/json; charset=utf-8', ...extraHeaders };
+  res.writeHead(code, headers);
+  res.end(JSON.stringify(obj));
+}
+
+function readBody(req, cb) {
+  let data = '';
+  req.on('data', (chunk) => { data += chunk; if (data.length > 1e6) req.destroy(); });
+  req.on('end', () => {
+    if (!data) return cb(null, {});
+    try { cb(null, JSON.parse(data)); }
+    catch (err) { cb(err); }
+  });
+}
+
+function sanitizeCause(s) {
+  if (!s) return s;
+  let v = String(s).slice(0, 250);
+  // oculta secretos (password, token, secret, api_key, email) igual que KafkaActivityController:250
+  v = v.replace(/password\s*=\s*[^&\s,;]+/gi, 'password=***');
+  v = v.replace(/passwd\s*=\s*[^&\s,;]+/gi, 'passwd=***');
+  v = v.replace(/secret\s*=\s*[^&\s,;]+/gi, 'secret=***');
+  v = v.replace(/token\s*=\s*[^&\s,;]+/gi, 'token=***');
+  v = v.replace(/api[_-]?key\s*=\s*[^&\s,;]+/gi, 'api_key=***');
+  v = v.replace(/([a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,})/g, '***@***');
+  return v;
+}
+
+function authorized(req) {
+  if (TOKEN === '') return true;
+  const got = String(req.headers['x-live-token'] || '');
+  if (got.length !== TOKEN.length) return false;
+  try {
+    return crypto.timingSafeEqual(Buffer.from(got), Buffer.from(TOKEN));
+  } catch (_) {
+    return got === TOKEN;
+  }
+}
+
+function rateLimited(req, res) {
+  const ip = (req.headers['x-forwarded-for'] || req.socket.remoteAddress || 'unknown').split(',')[0].trim();
+  const now = Date.now();
+  let entry = rateMap.get(ip);
+  if (!entry || now > entry.resetAt) {
+    entry = { count: 0, resetAt: now + RATE_WINDOW_MS };
+    rateMap.set(ip, entry);
+  }
+  entry.count += 1;
+  if (entry.count > RATE_LIMIT_MAX) {
+    const retryAfter = Math.ceil((entry.resetAt - now) / 1000);
+    json(res, 429, { error: 'rate_limited', retryAfter }, { 'Retry-After': String(retryAfter) });
+    return true;
+  }
+  return false;
+}
+
+function setCors(req, res) {
+  const origin = req.headers.origin || '';
+  // Pages-only: solo el origin de GitHub Pages entra. Para local/dev también permitimos localhost
+  if (origin === ALLOWED_ORIGIN || origin.startsWith('http://localhost') || origin.startsWith('http://127.0.0.1')) {
+    res.setHeader('Access-Control-Allow-Origin', origin);
+    res.setHeader('Vary', 'Origin');
+  } else {
+    // Producto: Pages-only, no *
+    res.setHeader('Access-Control-Allow-Origin', ALLOWED_ORIGIN);
+    res.setHeader('Vary', 'Origin');
+  }
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, x-live-token');
+  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
+  res.setHeader('Access-Control-Max-Age', '86400');
+}
+
+const server = http.createServer((req, res) => {
+  const url = new URL(req.url, `http://${req.headers.host}`);
+  setCors(req, res);
+  if (req.method === 'OPTIONS') { res.writeHead(204); res.end(); return; }
+
+  // POST /api/jenkins/events — evento único o lote (build/docker events)
+  if (req.method === 'POST' && (url.pathname === '/api/jenkins/events' || url.pathname === '/api/docker/events')) {
+    if (rateLimited(req, res)) return;
+    if (!authorized(req)) return json(res, 401, { error: 'unauthorized' });
+    return readBody(req, (err, body) => {
+      if (err) return json(res, 400, { error: 'JSON inválido' });
+      // body puede ser [...] o {events:[...]} o evento único {...}
+      let batch = [];
+      if (Array.isArray(body)) batch = body;
+      else if (Array.isArray(body.events)) batch = body.events;
+      else if (body && typeof body === 'object' && Object.keys(body).length > 0) batch = [body];
+      for (const ev of batch) {
+        const sanitized = { ...ev };
+        if (sanitized.causeChain) sanitized.causeChain = sanitizeCause(sanitized.causeChain);
+        if (sanitized.cause) sanitized.cause = sanitizeCause(sanitized.cause);
+        sanitized.receivedAt = new Date().toISOString();
+        state.events.push(sanitized);
+      }
+      if (state.events.length > MAX_EVENTS) state.events = state.events.slice(-MAX_EVENTS);
+      state.lastSeen = new Date().toISOString();
+      json(res, 200, { ok: true, stored: batch.length, total: state.events.length });
+    });
+  }
+
+  // POST /api/jenkins/snapshot — snapshot jenkins + docker + metrics
+  if (req.method === 'POST' && (url.pathname === '/api/jenkins/snapshot' || url.pathname === '/api/docker/snapshot')) {
+    if (rateLimited(req, res)) return;
+    if (!authorized(req)) return json(res, 401, { error: 'unauthorized' });
+    return readBody(req, (err, body) => {
+      if (err) return json(res, 400, { error: 'JSON inválido' });
+      // Soporta {jenkins:{...}, containers:[...], obs:{...}} o {containers:[...]} legacy
+      if (body.jenkins && typeof body.jenkins === 'object') {
+        const j = body.jenkins;
+        state.jenkins.queue = Number(j.queue ?? state.jenkins.queue) || 0;
+        if (j.executors) {
+          state.jenkins.executors.busy = Number(j.executors.busy ?? 0) || 0;
+          state.jenkins.executors.idle = Number(j.executors.idle ?? 0) || 0;
+        }
+        if (Array.isArray(j.jobs)) {
+          state.jenkins.jobs = j.jobs.map((job) => ({
+            name: String(job.name || '?').slice(0, 120),
+            lastBuild: job.lastBuild ? {
+              number: Number(job.lastBuild.number ?? job.lastBuild.build ?? 0) || 0,
+              result: sanitizeCause(String(job.lastBuild.result || 'UNKNOWN').slice(0, 20)),
+              timestamp: Number(job.lastBuild.timestamp ?? job.lastBuild.ts ?? 0) || 0,
+              duration: Number(job.lastBuild.duration ?? 0) || 0,
+            } : null,
+          })).slice(0, 50);
+        }
+        if (j.status) state.jenkins.status = sanitizeCause(String(j.status).slice(0, 80));
+        if (j.causeChain) state.jenkins.causeChain = sanitizeCause(j.causeChain);
+      }
+      if (Array.isArray(body.containers)) state.containers = body.containers.slice(0, 100);
+      else if (Array.isArray(body)) state.containers = body.slice(0, 100);
+      if (body.obs && typeof body.obs === 'object') {
+        if (body.obs.outboxPending != null) state.obs.outboxPending = Number(body.obs.outboxPending) || 0;
+        if (body.obs.kafkaPublishErrors != null) state.obs.kafkaPublishErrors = Number(body.obs.kafkaPublishErrors) || 0;
+      }
+      if (body.outboxPending != null) state.obs.outboxPending = Number(body.outboxPending) || 0;
+      state.lastSeen = new Date().toISOString();
+      json(res, 200, { ok: true, jenkins: state.jenkins, containers: state.containers.length, obs: state.obs });
+    });
+  }
+
+  // POST /api/jenkins/metrics alias /api/obs/metrics — métricas dummy (outboxPending etc)
+  if (req.method === 'POST' && (url.pathname === '/api/jenkins/metrics' || url.pathname === '/api/obs/metrics')) {
+    if (rateLimited(req, res)) return;
+    if (!authorized(req)) return json(res, 401, { error: 'unauthorized' });
+    return readBody(req, (err, body) => {
+      if (err) return json(res, 400, { error: 'JSON inválido' });
+      const src = body.metrics || body.obs || body;
+      if (src.outboxPending != null) state.obs.outboxPending = Number(src.outboxPending) || 0;
+      if (src.kafkaPublishErrors != null) state.obs.kafkaPublishErrors = Number(src.kafkaPublishErrors) || 0;
+      if (src.outbox_pending != null) state.obs.outboxPending = Number(src.outbox_pending) || 0;
+      state.lastSeen = new Date().toISOString();
+      json(res, 200, { ok: true, obs: state.obs });
+    });
+  }
+
+  // GET /api/jenkins/live — poll dashboard (público, healthCheck)
+  if (req.method === 'GET' && (url.pathname === '/api/jenkins/live' || url.pathname === '/api/docker/live')) {
+    return json(res, 200, {
+      events: state.events,
+      containers: state.containers,
+      jenkins: state.jenkins,
+      obs: { ...state.obs, serverTime: new Date().toISOString() },
+      lastSeen: state.lastSeen,
+      serverTime: new Date().toISOString(),
+    });
+  }
+
+  // GET /health alias
+  if (req.method === 'GET' && url.pathname === '/health') {
+    return json(res, 200, { ok: true, lastSeen: state.lastSeen, serverTime: new Date().toISOString() });
+  }
+
+  // GET /jenkins-dashboard.html (+ /)
+  if (req.method === 'GET' && (url.pathname === '/' || url.pathname === '/jenkins-dashboard.html' || url.pathname === '/dashboard.html')) {
+    const file = path.join(__dirname, 'jenkins-dashboard.html');
+    return fs.readFile(file, (err, data) => {
+      if (err) { res.writeHead(500, { 'Content-Type': 'text/plain; charset=utf-8' }); res.end('jenkins-dashboard.html no encontrado'); return; }
+      res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8', 'Content-Security-Policy': "default-src 'self'; connect-src 'self' https://yadinstore-jenkins-obs-live.onrender.com https://ypmanrique2.github.io; style-src 'unsafe-inline'; script-src 'self' 'unsafe-inline'" });
+      res.end(data);
+    });
+  }
+
+  json(res, 404, { error: 'not found' });
+});
+
+server.listen(PORT, () => {
+  console.log(`[jenkins-obs-live] escuchando en :${PORT} (token auth: ${TOKEN ? 'ON' : 'OFF'}, origin: ${ALLOWED_ORIGIN})`);
+});

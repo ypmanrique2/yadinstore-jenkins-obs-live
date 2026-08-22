@@ -1,0 +1,176 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; connect-src 'self' https://yadinstore-jenkins-obs-live.onrender.com https://ypmanrique2.github.io http://localhost:* http://127.0.0.1:*; style-src 'unsafe-inline'; script-src 'self' 'unsafe-inline'">
+    <title>YadinStore — Jenkins en vivo (CI/CD Live)</title>
+    <style>
+        :root { color-scheme: dark; }
+        body { font-family: ui-monospace, "Cascadia Code", Consolas, monospace; background:#0b0e14; color:#d4dae6; margin:0; padding:1.2rem; }
+        h1 { font-size:1.15rem; color:#fff; margin:0 0 .25rem; }
+        h1 span { color:#22c55e; }
+        .sub { color:#6b7a90; font-size:.78rem; margin-bottom:1rem; }
+        .badge { display:inline-block; background:#1a2130; border:1px solid #2a3547; border-radius:999px; padding:.1rem .6rem; font-size:.72rem; margin-right:.3rem; }
+        .badge.ok { border-color:#22c55e; color:#22c55e; }
+        .badge.warn { border-color:#eab308; color:#eab308; }
+        .badge.err { border-color:#ef4444; color:#ef4444; }
+        .grid { display: grid; grid-template-columns: 1.1fr .9fr; gap: 1rem; }
+        @media (max-width: 900px) { .grid { grid-template-columns: 1fr; } }
+        .card { background:#11161f; border:1px solid #222c3d; border-radius:10px; padding:.8rem 1rem; }
+        .card h2 { font-size:.85rem; color:#93c5fd; margin:.2rem 0 .6rem; text-transform:uppercase; letter-spacing:.06em; }
+        table { width:100%; border-collapse:collapse; font-size:.78rem; }
+        th { text-align:left; color:#6b7a90; font-weight:500; padding:.3rem .4rem; border-bottom:1px solid #222c3d; }
+        td { padding:.3rem .4rem; border-bottom:1px solid #161c29; }
+        .kpis { display:grid; grid-template-columns: repeat(4,1fr); gap:.6rem; margin-bottom:1rem; }
+        @media (max-width:700px){ .kpis{ grid-template-columns: repeat(2,1fr);} }
+        .kpi { background:#11161f; border:1px solid #222c3d; border-radius:10px; padding:.6rem .8rem; text-align:center; }
+        .kpi .v { font-size:1.4rem; color:#fff; font-weight:700; }
+        .kpi .l { font-size:.68rem; color:#6b7a90; text-transform:uppercase; letter-spacing:.06em; }
+        .ev { padding:.35rem .4rem; border-bottom:1px solid #161c29; font-size:.76rem; display:flex; gap:.6rem; }
+        .ev time { color:#4b5a70; flex:0 0 74px; }
+        .ev .type { color:#60a5fa; flex:0 0 84px; }
+        .ev .act { color:#eab308; flex:0 0 110px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+        .ev .actor { color:#94a3b8; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+        .empty { color:#4b5a70; font-size:.78rem; padding:.5rem 0; }
+        .agent { margin-bottom:.8rem; display:flex; gap:.6rem; align-items:center; font-size:.8rem; flex-wrap:wrap; }
+        .dot { width:10px; height:10px; border-radius:50%; display:inline-block; }
+        .dot.on { background:#22c55e; box-shadow:0 0 8px #22c55e88; }
+        .dot.off { background:#ef4444; }
+        .status-running{color:#22c55e} .status-exited{color:#ef4444} .status-created{color:#60a5fa} .status-restarting{color:#eab308}
+        .result-success{color:#22c55e} .result-failure{color:#ef4444} .result-unstable{color:#eab308} .result-unknown{color:#6b7a90}
+        footer { margin-top:1.2rem; font-size:.72rem; color:#4b5a70; }
+        .obs { display:flex; gap:.6rem; align-items:center; font-size:.75rem; color:#94a3b8; }
+        .obs b{ color:#d4dae6; }
+    </style>
+</head>
+<body>
+    <h1>🔧 Jenkins en vivo <span>— YadinStore CI/CD Live</span></h1>
+    <div class="sub">Agente local → <code>docker events yadin-jenkins</code> + <code>Jenkins :8081/api/json</code> + metrics → Render free tier · Poll 2s · 3 streams: jenkins / docker / metrics</div>
+
+    <div class="agent" id="agent">
+        <span class="dot off" id="dot"></span>
+        <span id="agentText">Esperando al agente…</span>
+        <span class="badge" id="eventCount">0 eventos</span>
+        <span class="badge" id="containerCount">0 contenedores</span>
+        <span class="badge" id="queueBadge">queue 0</span>
+        <span class="badge" id="executorBadge">executors 0/0</span>
+    </div>
+
+    <div class="kpis" id="kpis">
+        <div class="kpi"><div class="v" id="kpiQueue">—</div><div class="l">queue</div></div>
+        <div class="kpi"><div class="v" id="kpiBusy">—</div><div class="l">executors busy</div></div>
+        <div class="kpi"><div class="v" id="kpiIdle">—</div><div class="l">executors idle</div></div>
+        <div class="kpi"><div class="v" id="kpiPending">—</div><div class="l">outbox pending</div></div>
+    </div>
+    <div class="obs" id="obsLine"><span>obs: <b id="obsPending">0</b> pending · <b id="obsErrors">0</b> kafka errors · </span><span id="serverTime" style="color:#4b5a70"></span></div>
+
+    <div class="grid">
+        <div class="card">
+            <h2>Jenkins — jobs & builds</h2>
+            <table>
+                <thead><tr><th>Job</th><th>#</th><th>Result</th><th>Duración</th></tr></thead>
+                <tbody id="jobs"><tr><td colspan="4" class="empty">Sin jobs todavía — levantá el agente</td></tr></tbody>
+            </table>
+            <div style="margin-top:.8rem">
+                <h2 style="margin-top:.6rem">Eventos (jenkins builds + docker events)</h2>
+                <div id="events"><div class="empty">Sin eventos — <code>.\jenkins-obs-agent.ps1</code></div></div>
+            </div>
+        </div>
+        <div class="card">
+            <h2>Contenedores (docker ps — yadin-jenkins)</h2>
+            <table>
+                <thead><tr><th>Nombre</th><th>Imagen</th><th>Estado</th><th>Puertos</th></tr></thead>
+                <tbody id="containers"><tr><td colspan="4" class="empty">Sin snapshot todavía</td></tr></tbody>
+            </table>
+            <div style="margin-top:1rem">
+                <h2>Métricas (dummy estructura · futuro Micrometer)</h2>
+                <div id="metricsChart" style="height:72px; background:#0b0e14; border:1px solid #222c3d; border-radius:6px; display:flex; align-items:center; justify-content:center; color:#4b5a70; font-size:.72rem;">outbox.pending · kafka.publish.errors → Grafana Cloud roadmap (§8 avance)</div>
+            </div>
+        </div>
+    </div>
+
+    <footer>GitHub Actions + Jenkins pipeline · GitHub Pages (estático) + Render <code>yadinstore-jenkins-obs-live</code> en vivo · 100% free tier · CORS <code>ypmanrique2.github.io</code> only · rate-limit 10/min</footer>
+
+    <script>
+        const $ = (id) => document.getElementById(id);
+        function esc(s) { return String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+        function statusClass(status) {
+            const s = (status || '').toLowerCase();
+            if (s.includes('up') || s.includes('running')) return 'status-running';
+            if (s.includes('exited')) return 'status-exited';
+            if (s.includes('restart')) return 'status-restarting';
+            return 'status-created';
+        }
+        function resultClass(r) {
+            const s = (r||'').toLowerCase();
+            if (s.includes('success')) return 'result-success';
+            if (s.includes('fail')) return 'result-failure';
+            if (s.includes('unstable')||s.includes('abort')) return 'result-unstable';
+            return 'result-unknown';
+        }
+        async function poll() {
+            try {
+                const r = await fetch('/api/jenkins/live');
+                const data = await r.json();
+                render(data);
+            } catch (e) {
+                $('dot').className = 'dot off';
+                $('agentText').textContent = 'Servidor no responde: ' + e.message;
+            }
+        }
+        function render(data) {
+            const last = data.lastSeen ? new Date(data.lastSeen).getTime() : 0;
+            const now = new Date(data.serverTime).getTime();
+            const alive = last > 0 && (now - last) < 15000;
+            $('dot').className = 'dot ' + (alive ? 'on' : 'off');
+            $('agentText').textContent = alive ? 'Agente ONLINE — último POST ' + new Date(last).toLocaleTimeString() : 'Agente OFFLINE (último POST: ' + (last ? new Date(last).toLocaleTimeString() : 'nunca') + ')';
+            $('eventCount').textContent = (data.events||[]).length + ' eventos';
+            $('containerCount').textContent = (data.containers||[]).length + ' contenedores';
+            const j = data.jenkins || {queue:0, executors:{busy:0,idle:0}, jobs:[]};
+            const obs = data.obs || {outboxPending:0, kafkaPublishErrors:0};
+            $('queueBadge').textContent = 'queue ' + (j.queue ?? 0);
+            $('executorBadge').textContent = 'executors ' + (j.executors?.busy ?? 0) + '/' + (j.executors?.idle ?? 0);
+            $('kpiQueue').textContent = String(j.queue ?? 0);
+            $('kpiBusy').textContent = String(j.executors?.busy ?? 0);
+            $('kpiIdle').textContent = String(j.executors?.idle ?? 0);
+            $('kpiPending').textContent = String(obs.outboxPending ?? obs.outbox_pending ?? 0);
+            $('obsPending').textContent = String(obs.outboxPending ?? obs.outbox_pending ?? 0);
+            $('obsErrors').textContent = String(obs.kafkaPublishErrors ?? 0);
+            $('serverTime').textContent = 'server ' + new Date(data.serverTime).toLocaleTimeString();
+
+            // Jobs
+            const jobs = j.jobs || [];
+            $('jobs').innerHTML = jobs.length ? jobs.map(job => {
+                const lb = job.lastBuild || {};
+                const num = lb.number ?? lb.build ?? '—';
+                const res = lb.result || 'UNKNOWN';
+                const dur = lb.duration ? (lb.duration/1000).toFixed(1)+'s' : '—';
+                return `<tr><td>${esc(job.name)}</td><td>${esc(num)}</td><td class="${resultClass(res)}">${esc(res)}</td><td>${esc(dur)}</td></tr>`;
+            }).join('') : '<tr><td colspan="4" class="empty">Sin jobs todavía</td></tr>';
+
+            // Events (últimos 40)
+            const ev = (data.events||[]).slice(-40).reverse();
+            $('events').innerHTML = ev.length ? ev.map(e => `
+                <div class="ev">
+                    <time>${esc(e.receivedAt ? new Date(e.receivedAt).toLocaleTimeString() : (e.ts ? new Date(e.ts*1000).toLocaleTimeString() : ''))}</time>
+                    <span class="type">${esc(e.Type || e.type || 'build')}</span>
+                    <span class="act">${esc(e.Action || e.action || e.result || e.job || '?')}</span>
+                    <span class="actor">${esc((e.Actor && (e.Actor.Name||e.Actor.ID)) || e.job || e.actor || e.causeChain || '')}</span>
+                </div>`).join('') : '<div class="empty">Sin eventos todavía</div>';
+
+            // Containers
+            const cs = data.containers || [];
+            $('containers').innerHTML = cs.length ? cs.map(c => `
+                <tr>
+                    <td>${esc(c.Names ? (Array.isArray(c.Names)? c.Names[0]: c.Names) : (c.name||c.Names||'?'))}</td>
+                    <td>${esc(c.Image || c.image || '?')}</td>
+                    <td class="${statusClass(c.Status||c.status)}">${esc(c.Status||c.status||'?')}</td>
+                    <td>${esc((c.Ports||[]).map(p=> (p.PublicPort||'')+'→'+p.PrivatePort+'/'+(p.Type||'tcp')).join(', '))}</td>
+                </tr>`).join('') : '<tr><td colspan="4" class="empty">Sin snapshot todavía</td></tr>';
+        }
+        setInterval(poll, 2000);
+        poll();
+    </script>
+</body>
+</html>
