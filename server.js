@@ -121,8 +121,8 @@ function setCors(req, res) {
     res.setHeader('Access-Control-Allow-Origin', ALLOWED_ORIGIN);
     res.setHeader('Vary', 'Origin');
   }
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, x-live-token');
-  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, x-live-token, Authorization');
+  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS, HEAD');
   res.setHeader('Access-Control-Max-Age', '86400');
 }
 
@@ -225,6 +225,13 @@ const server = http.createServer((req, res) => {
   // GET /health alias
   if (req.method === 'GET' && url.pathname === '/health') {
     return json(res, 200, { ok: true, lastSeen: state.lastSeen, serverTime: new Date().toISOString() });
+  }
+
+  // HEAD /api/jenkins/live, /api/docker/live, /health — UptimeRobot HEAD (200 sin body, evita 404 x-render-routing no-server)
+  if (req.method === 'HEAD' && (url.pathname === '/api/jenkins/live' || url.pathname === '/api/docker/live' || url.pathname === '/health')) {
+    res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8' });
+    res.end();
+    return;
   }
 
   // GET /jenkins-dashboard.html (+ /)
