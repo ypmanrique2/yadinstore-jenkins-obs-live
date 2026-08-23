@@ -48,6 +48,44 @@ function Sanitize-Cause([string]$s) {
     return $v
 }
 
+function ToSafeInt($v, [int]$default = 0) {
+    if ($null -eq $v) { return $default }
+    $inv = [System.Globalization.CultureInfo]::InvariantCulture
+    if ($v -is [string]) {
+        $t = $v.Trim()
+        if ([string]::IsNullOrEmpty($t)) { return $default }
+        $out = 0
+        if ([int]::TryParse($t, [System.Globalization.NumberStyles]::Integer, $inv, [ref]$out)) { return $out }
+        $d = 0.0
+        if ([double]::TryParse($t, [System.Globalization.NumberStyles]::Any, $inv, [ref]$d)) { return [int][Math]::Floor($d) }
+        return $default
+    }
+    if ($v -is [int]) { return $v }
+    if ($v -is [long] -or $v -is [double] -or $v -is [decimal] -or $v -is [single]) {
+        try { return [int][Math]::Floor([double]$v) } catch { return $default }
+    }
+    # PSCustomObject wrapping "" or other: try ToString con Invariant
+    try {
+        $s = "$v".Trim()
+        if ([string]::IsNullOrEmpty($s)) { return $default }
+        $out = 0
+        if ([int]::TryParse($s, [System.Globalization.NumberStyles]::Integer, $inv, [ref]$out)) { return $out }
+        $d = 0.0
+        if ([double]::TryParse($s, [System.Globalization.NumberStyles]::Any, $inv, [ref]$d)) { return [int][Math]::Floor($d) }
+    } catch {}
+    return $default
+}
+
+function GetSafeCount($maybeArray) {
+    if ($null -eq $maybeArray) { return 0 }
+    if ($maybeArray -is [string]) {
+        if ([string]::IsNullOrWhiteSpace($maybeArray)) { return 0 }
+        # string no vacio no es coleccion de jobs — contar como 0 para jobs, 1 generico
+        return 0
+    }
+    try { return @($maybeArray).Count } catch { return 0 }
+}
+
 # Resolver Jenkins auth desde params o env (JENKINS_TOKEN / JENKINS_API_TOKEN / JENKINS_USER)
 if (-not $JenkinsToken) {
     if ($env:JENKINS_TOKEN) { $JenkinsToken = $env:JENKINS_TOKEN }
@@ -118,23 +156,56 @@ try {
             $jenkinsParams = @{ Method = "Get"; Uri = "$JenkinsUrl/api/json?tree=jobs[name,lastBuild[number,result,timestamp,duration],queueItem],primaryView,overallLoad[busyExecutors,totalExecutors]"; TimeoutSec = 10; ErrorAction = "Stop" }
             if ($jenkinsHeaders.Count -gt 0) { $jenkinsParams.Headers = $jenkinsHeaders }
             $jenkinsJson = Invoke-RestMethod @jenkinsParams
+            # FIX: Guard contra "" (empty string) que venia de 401/timeout — antes [int]"" crasheaba con "Cannot convert "" to Int32"
+            if ($null -eq $jenkinsJson -or ($jenkinsJson -is [string] -and [string]::IsNullOrWhiteSpace($jenkinsJson))) {
+                throw "Empty Jenkins response (401/timeout) — received empty string"
+            }
+            if ($jenkinsJson -is [string]) {
+                try { $jenkinsJson = $jenkinsJson | ConvertFrom-Json -ErrorAction Stop } catch { throw "Invalid Jenkins JSON string: $($_.Exception.Message)" }
+                if ($null -eq $jenkinsJson -or ($jenkinsJson -is [string] -and [string]::IsNullOrWhiteSpace($jenkinsJson))) {
+                    throw "Empty Jenkins response after parse"
+                }
+            }
             # overallLoad puede no existir en versiones viejas; fallback a nodes
             $busy = 0; $idle = 0; $queue = 0
-            if ($jenkinsJson.overallLoad) { $busy = [int]($jenkinsJson.overallLoad.busyExecutors ?? 0); $idle = [int](($jenkinsJson.overallLoad.totalExecutors ?? 0) - $busy) }
+            $busyRaw = $null; $totalRaw = $null
+            if ($jenkinsJson.PSObject.Properties['overallLoad'] -and $jenkinsJson.overallLoad) {
+                $busyRaw = if ($jenkinsJson.overallLoad.PSObject.Properties['busyExecutors']) { $jenkinsJson.overallLoad.busyExecutors } else { $null }
+                $totalRaw = if ($jenkinsJson.overallLoad.PSObject.Properties['totalExecutors']) { $jenkinsJson.overallLoad.totalExecutors } else { $null }
+            }
+            $busy = ToSafeInt $busyRaw 0
+            $total = ToSafeInt $totalRaw 0
+            if ($total -gt 0) { $idle = [Math]::Max(0, $total - $busy) } else { $idle = 0 }
             # queue items — timeout 10s (aumentado de 3s para evitar Timeout 5s)
             try {
                 $qParams = @{ Method = "Get"; Uri = "$JenkinsUrl/queue/api/json?tree=items[id,task[name]]"; TimeoutSec = 10; ErrorAction = "SilentlyContinue" }
                 if ($jenkinsHeaders.Count -gt 0) { $qParams.Headers = $jenkinsHeaders }
                 $q = Invoke-RestMethod @qParams
-                if ($q.items) { $queue = @($q.items).Count }
+                if ($null -ne $q -and -not ($q -is [string] -and [string]::IsNullOrWhiteSpace($q)) -and $q.PSObject.Properties['items'] -and $null -ne $q.items) {
+                    if ($q.items -is [string] -and [string]::IsNullOrWhiteSpace($q.items)) { $queue = 0 }
+                    else { $queue = GetSafeCount $q.items }
+                } else { $queue = 0 }
             } catch { $queue = 0 }
             $jobs = @()
-            if ($jenkinsJson.jobs) {
-                foreach ($j in $jenkinsJson.jobs) {
-                    $jobs += @{ name = $j.name; lastBuild = if ($j.lastBuild) { @{ number = $j.lastBuild.number; result = $j.lastBuild.result; timestamp = $j.lastBuild.timestamp; duration = $j.lastBuild.duration } } else { $null } }
+            if ($jenkinsJson.PSObject.Properties['jobs'] -and $null -ne $jenkinsJson.jobs -and -not ($jenkinsJson.jobs -is [string] -and [string]::IsNullOrWhiteSpace($jenkinsJson.jobs))) {
+                $jobsRaw = @($jenkinsJson.jobs)
+                foreach ($j in $jobsRaw) {
+                    if ($null -eq $j -or ($j -is [string] -and [string]::IsNullOrWhiteSpace($j))) { continue }
+                    $lastBuild = $null
+                    if ($j.PSObject.Properties['lastBuild'] -and $null -ne $j.lastBuild -and -not ($j.lastBuild -is [string] -and [string]::IsNullOrWhiteSpace($j.lastBuild))) {
+                        $lastBuild = @{
+                            number    = ToSafeInt $j.lastBuild.number 0
+                            result    = $j.lastBuild.result
+                            timestamp = ToSafeInt $j.lastBuild.timestamp 0
+                            duration  = ToSafeInt $j.lastBuild.duration 0
+                        }
+                        # Si number original era "" o $null, restaurar $null para no inventar build 0
+                        if ($null -eq $j.lastBuild.number -or ($j.lastBuild.number -is [string] -and [string]::IsNullOrWhiteSpace($j.lastBuild.number))) { $lastBuild.number = $null }
+                    }
+                    $jobs += @{ name = if ($j.PSObject.Properties['name'] -and $j.name) { $j.name } else { "" }; lastBuild = $lastBuild }
                 }
             }
-            if (-not $busy -and -not $idle) {
+            if ($busy -eq 0 -and $idle -eq 0 -and $total -eq 0) {
                 # fallback: estimar 2 executors por defecto si no hay overallLoad
                 $busy = 0; $idle = 2
             }
@@ -143,9 +214,10 @@ try {
             $cause = Sanitize-Cause $_.Exception.Message
             $statusCode = $null
             try { if ($_.Exception.Response) { $statusCode = [int]$_.Exception.Response.StatusCode.Value__ } } catch {}
-            if ($_.Exception.Message -match "403" -or $statusCode -eq 403) {
+            # FIX: manejar 401 y 403 como auth-required (antes solo 403)
+            if ($_.Exception.Message -match "401" -or $_.Exception.Message -match "403" -or $statusCode -eq 401 -or $statusCode -eq 403) {
                 $jenkinsSnapshot = @{ queue = 0; executors = @{ busy = 0; idle = 0 }; jobs = @(); status = "auth-required"; causeChain = $cause }
-                Write-Host "  [jenkins] auth-required (403): $cause — configura -JenkinsUser/-JenkinsToken o env JENKINS_TOKEN (timeout 10s)" -ForegroundColor Red
+                Write-Host "  [jenkins] auth-required (401/403): $cause — configura -JenkinsUser/-JenkinsToken o env JENKINS_TOKEN (timeout 10s)" -ForegroundColor Red
             } else {
                 $jenkinsSnapshot = @{ queue = 0; executors = @{ busy = 0; idle = 0 }; jobs = @(); status = "unavailable"; causeChain = $cause }
                 Write-Host "  [jenkins] unavailable: $cause" -ForegroundColor Yellow
@@ -160,13 +232,16 @@ try {
             # Intento 1: actuator prometheus local (docker profile)
             try {
                 $prom = Invoke-RestMethod -Method Get -Uri "$ActuatorUrl/actuator/prometheus" -TimeoutSec 3 -ErrorAction SilentlyContinue
-                if ($prom -match 'outbox_pending\s+([0-9.]+)') { $outboxPending = [int][double]$Matches[1] }
+                if ($prom -is [string] -and $prom -match 'outbox_pending\s+([0-9.]+)') { $outboxPending = ToSafeInt $Matches[1] 0 }
             } catch {}
             # Intento 2: prometheus query API (ci-cd-infra)
             if ($outboxPending -eq 0) {
                 try {
                     $q = Invoke-RestMethod -Method Get -Uri "$PrometheusUrl/api/v1/query?query=outbox_pending" -TimeoutSec 3 -ErrorAction SilentlyContinue
-                    if ($q.data.result -and $q.data.result[0].value[1]) { $outboxPending = [int][double]$q.data.result[0].value[1] }
+                    if ($null -ne $q -and -not ($q -is [string] -and [string]::IsNullOrWhiteSpace($q)) -and $q.data.result -and $q.data.result[0].value[1]) {
+                        $val = $q.data.result[0].value[1]
+                        if ($null -ne $val -and -not ([string]::IsNullOrWhiteSpace("$val"))) { $outboxPending = ToSafeInt $val 0 }
+                    }
                 } catch {}
             }
             # Dummy si no hay métrica real (estructura ok para fase1)
