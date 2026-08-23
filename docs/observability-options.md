@@ -66,5 +66,45 @@ for i in {1..11}; do curl -s -o /dev/null -w "%{http_code}\n" http://localhost:8
 
 ## Gateway BE
 
-`application.yml:166` `management.endpoints.web.exposure.include: health,metrics,prometheus` (local/docker) pero `application-prod.yml:74` solo `health` (404 prometheus directo). Gateway `/api/v1/observability/**` permitAll agregados en `SecurityConfig.java:310` (tradeoff permitAll vs VIEWER comentado para Fase3) proxyea metrics sin exponer prometheus.
+`application.yml:166` `management.endpoints.web.exposure.include: health,metrics,prometheus` (local/docker) pero `application-prod.yml:74` solo `health` (404 prometheus directo). Gateway `/api/v1/observability/**` **VIEWER gate** `hasAnyAuthority('ROLE_VIEWER','ROLE_ADMIN')` en `SecurityConfig.java:214` + `@PreAuthorize` en `ObservabilityController.java:77,123` (T301 cierra deuda Fase2 `permitAll`) proxyea metrics sin exponer prometheus — ver T303 dashboard RED con `${DS_PROMETHEUS}`.
+
+
+---
+
+## T303 Dashboard RED as-code (22-08 noche)
+
+**Provisioning as-code** — `ci-cd-infra/`:
+
+- `docker/grafana/provisioning/datasources/datasource.yml` → Prometheus `http://prometheus:9090` `uid:DS_PROMETHEUS` `isDefault:true` (Grafana 10.4.3 auto-provisiona, sin UI manual).
+- `docker/grafana/provisioning/dashboards/dashboard.yml` → provider `YadinStore` `path:/var/lib/grafana/dashboards` `updateIntervalSeconds:10`.
+- `monitoring/grafana/dashboards/observability-live.json` + `monitoring/grafana/dashboards/observability-live.json` (mirror) → 7 panels RED con datasource `${DS_PROMETHEUS}`:
+  1. **Rate** `sum(rate(http_server_requests_seconds_count{application="yadinstore"}[5m]))` unit `reqps` thresholds 0/10/50.
+  2. **Errors 5xx** `sum(rate(http_server_requests_seconds_count{application="yadinstore",status=~"5.."}[5m]))` thresholds 0/0.05/0.5.
+  3. **p95** `histogram_quantile(0.95, sum(rate(http_server_requests_seconds_bucket{application="yadinstore"}[5m])) by (le))` unit `s` thresholds 0/0.25/0.5/1 — requiere `application.yml:177 percentiles-histogram true` (T302).
+  4. **Gauge** `outbox_pending{application="yadinstore"}` unit `short` thresholds 0/5/10/20.
+  5. **Counter** `outbox_published_total` `sum(rate(...[5m]))` + `increase` unit `ops`.
+  6. **Counter** `outbox_failed_total` rate thresholds 0/0.01/0.1.
+  7. **Counter** `kafka_publish_errors_total` rate thresholds 0/0.01/0.1.
+
+Todos con `__inputs DS_PROMETHEUS`, `schemaVersion:39`, `refresh:5s`, `timezone:browser`.
+
+**Verificación local:**
+
+```bash
+docker compose up -d prometheus grafana
+curl http://localhost:9090/api/v1/query?query=outbox_pending | jq .data.result
+# → pending gauge
+curl http://localhost:9090/api/v1/query?query=histogram_quantile%280.95%2C%20sum%28rate%28http_server_requests_seconds_bucket%5B5m%5D%29%29%20by%20%28le%29%29 | jq
+# → p95
+
+# Grafana http://localhost:3000 admin/admin → Dashboards → YadinStore — Observability Live RED (7 panels)
+python -c "import json; json.load(open('monitoring/grafana/dashboards/observability-live.json')); print('JSON OK panels=7')"
+docker compose config | grep grafana -A2
+# → provisioning:/etc/grafana/provisioning:ro + dashboards:/var/lib/grafana/dashboards:ro
+```
+
+**Gateway BE Fase3 (actualizado):** `SecurityConfig.java:214` `hasAnyAuthority('ROLE_VIEWER','ROLE_ADMIN')` + `@PreAuthorize` en `ObservabilityController.java:77,123` (T301) — Pages necesitará `Authorization: Bearer <VIEWER_JWT>` en T304.
+
+**Free tier:** dashboard JSON `<14KB`, 7 panels `<10k series` Prometheus free tier, no rompe compose, no secrets.
+
 
