@@ -125,8 +125,8 @@
             const alive = last > 0 && (now - last) < 15000;
             $('dot').className = 'dot ' + (alive ? 'on' : 'off');
             $('agentText').textContent = alive ? 'Agente ONLINE — último POST ' + new Date(last).toLocaleTimeString() : 'Agente OFFLINE (último POST: ' + (last ? new Date(last).toLocaleTimeString() : 'nunca') + ')';
-            $('eventCount').textContent = (data.events||[]).length + ' eventos';
-            $('containerCount').textContent = (data.containers||[]).length + ' contenedores';
+            $('eventCount').textContent = (Array.isArray(data.events) ? data.events : []).length + ' eventos';
+            $('containerCount').textContent = (Array.isArray(data.containers) ? data.containers : []).length + ' contenedores';
             const j = data.jenkins || {queue:0, executors:{busy:0,idle:0}, jobs:[]};
             const obs = data.obs || {outboxPending:0, kafkaPublishErrors:0};
             $('queueBadge').textContent = 'queue ' + (j.queue ?? 0);
@@ -150,7 +150,7 @@
             }).join('') : '<tr><td colspan="4" class="empty">Sin jobs todavía</td></tr>';
 
             // Events (últimos 40)
-            const ev = (data.events||[]).slice(-40).reverse();
+            const ev = (Array.isArray(data.events) ? data.events : []).slice(-40).reverse();
             $('events').innerHTML = ev.length ? ev.map(e => `
                 <div class="ev">
                     <time>${esc(e.receivedAt ? new Date(e.receivedAt).toLocaleTimeString() : (e.ts ? new Date(e.ts*1000).toLocaleTimeString() : ''))}</time>
@@ -159,15 +159,19 @@
                     <span class="actor">${esc((e.Actor && (e.Actor.Name||e.Actor.ID)) || e.job || e.actor || e.causeChain || '')}</span>
                 </div>`).join('') : '<div class="empty">Sin eventos todavía</div>';
 
-            // Containers
-            const cs = data.containers || [];
-            $('containers').innerHTML = cs.length ? cs.map(c => `
+            // Containers — fix: c.Ports puede venir como string "8081:8080" desde docker ps
+            const cs = Array.isArray(data.containers) ? data.containers : [];
+            $('containers').innerHTML = cs.length ? cs.map(c => {
+                const portsArr = Array.isArray(c.Ports) ? c.Ports : (c.Ports ? [c.Ports] : []);
+                const portsStr = portsArr.map(p => typeof p === 'string' ? p : ((p.PublicPort||'')+'→'+p.PrivatePort+'/'+(p.Type||'tcp'))).join(', ');
+                return `
                 <tr>
                     <td>${esc(c.Names ? (Array.isArray(c.Names)? c.Names[0]: c.Names) : (c.name||c.Names||'?'))}</td>
                     <td>${esc(c.Image || c.image || '?')}</td>
                     <td class="${statusClass(c.Status||c.status)}">${esc(c.Status||c.status||'?')}</td>
-                    <td>${esc((c.Ports||[]).map(p=> (p.PublicPort||'')+'→'+p.PrivatePort+'/'+(p.Type||'tcp')).join(', '))}</td>
-                </tr>`).join('') : '<tr><td colspan="4" class="empty">Sin snapshot todavía</td></tr>';
+                    <td>${esc(portsStr)}</td>
+                </tr>`;
+            }).join('') : '<tr><td colspan="4" class="empty">Sin snapshot todavía</td></tr>';
         }
         setInterval(poll, 2000);
         poll();
