@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; connect-src 'self' https://yadinstore-jenkins-obs-live.onrender.com https://ypmanrique2.github.io http://localhost:* http://127.0.0.1:*; style-src 'unsafe-inline'; script-src 'self' 'unsafe-inline'">
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; connect-src 'self' https://yadinstore-jenkins-obs-live.onrender.com https://yadinstore-backend.onrender.com https://ypmanrique2.github.io http://localhost:* http://127.0.0.1:*; style-src 'unsafe-inline'; script-src 'self' 'unsafe-inline'">
     <title>YadinStore — Jenkins en vivo (CI/CD Live)</title>
     <style>
         :root { color-scheme: dark; }
@@ -42,11 +42,29 @@
         footer { margin-top:1.2rem; font-size:.72rem; color:#4b5a70; }
         .obs { display:flex; gap:.6rem; align-items:center; font-size:.75rem; color:#94a3b8; }
         .obs b{ color:#d4dae6; }
+        /* ---- Métricas live BE-KD style ---- */
+        .metrics { display:grid; grid-template-columns: repeat(3,1fr); gap:.6rem; margin-top:.4rem; }
+        @media (max-width:700px){ .metrics{ grid-template-columns: repeat(2,1fr);} }
+        .metric { background:#0b0e14; border:1px solid #222c3d; border-radius:8px; padding:.55rem .6rem; text-align:center; }
+        .metric .v { font-size:1.25rem; font-weight:700; color:#fff; font-variant-numeric: tabular-nums; }
+        .metric .v.warn { color:#eab308; }
+        .metric .v.err { color:#ef4444; }
+        .metric .v.ok { color:#22c55e; }
+        .metric .l { font-size:.66rem; color:#6b7a90; text-transform:uppercase; letter-spacing:.06em; margin-top:.2rem; }
+        .badge-hist { display:inline-block; padding:.1rem .45rem; border-radius:999px; font-size:.68rem; font-weight:600; border:1px solid #10b981; color:#10b981; background:rgba(16,185,129,.12); margin-left:.4rem; vertical-align:middle; }
+        .badge-hist.false { border-color:#4b5a70; color:#6b7a90; background:#1a2130; }
+        .mono { font-family: ui-monospace, "Cascadia Code", Consolas, monospace; }
+        .level-INFO { color:#22c55e; border:1px solid rgba(34,197,94,.4); background:rgba(34,197,94,.12); padding:.1rem .45rem; border-radius:999px; font-size:.68rem; font-weight:600; }
+        .level-ERROR { color:#ef4444; border:1px solid rgba(239,68,68,.4); background:rgba(239,68,68,.12); padding:.1rem .45rem; border-radius:999px; font-size:.68rem; font-weight:600; }
+        .level-WARN { color:#eab308; border:1px solid rgba(234,179,8,.4); background:rgba(234,179,8,.12); padding:.1rem .45rem; border-radius:999px; font-size:.68rem; font-weight:600; }
+        .level-DEBUG { color:#60a5fa; border:1px solid rgba(96,165,250,.4); background:rgba(96,165,250,.12); padding:.1rem .45rem; border-radius:999px; font-size:.68rem; font-weight:600; }
+        .logs-table th { font-size:.72rem; white-space:nowrap; }
+        .logs-table td { font-size:.74rem; word-break:break-word; }
     </style>
 </head>
 <body>
     <h1>🔧 Jenkins en vivo <span>— YadinStore CI/CD Live</span></h1>
-    <div class="sub">Agente local → <code>docker events yadin-jenkins</code> + <code>Jenkins :8081/api/json</code> + metrics → Render free tier · Poll 2s · 3 streams: jenkins / docker / metrics</div>
+    <div class="sub">Agente local → <code>docker events yadin-jenkins</code> + <code>Jenkins :8081/api/json</code> + metrics → Render free tier · Poll 2s · 3 streams: jenkins / docker / metrics → Observability BE-KD live</div>
 
     <div class="agent" id="agent">
         <span class="dot off" id="dot"></span>
@@ -84,16 +102,41 @@
                 <tbody id="containers"><tr><td colspan="4" class="empty">Sin snapshot todavía</td></tr></tbody>
             </table>
             <div style="margin-top:1rem">
-                <h2>Métricas (dummy estructura · futuro Micrometer)</h2>
-                <div id="metricsChart" style="height:72px; background:#0b0e14; border:1px solid #222c3d; border-radius:6px; display:flex; align-items:center; justify-content:center; color:#4b5a70; font-size:.72rem;">outbox.pending · kafka.publish.errors → Grafana Cloud roadmap (§8 avance)</div>
+                <h2>Métricas en vivo · Micrometer outbox.pending + p95 histogram</h2>
+                <div class="obs" style="margin-bottom:.45rem; font-size:.72rem; color:#6b7a90; flex-wrap:wrap;">
+                    <span>Micrometer Gauge + Counters + <span style="color:#10b981">p95 histogram: <b id="histFlag">—</b></span></span>
+                    <span>· scrape <span id="scrapeTime" class="mono" style="color:#94a3b8">—</span></span>
+                    <span id="obsBackendStatus" class="badge">backend …</span>
+                </div>
+                <div class="metrics" id="metricsGrid">
+                    <div class="metric"><div class="v" id="mPending">—</div><div class="l">outbox.pending <span style="color:#22c55e">(Gauge)</span></div></div>
+                    <div class="metric"><div class="v" id="mPublished">—</div><div class="l">outbox.published</div></div>
+                    <div class="metric"><div class="v" id="mFailed">—</div><div class="l">outbox.failed</div></div>
+                    <div class="metric"><div class="v" id="mErrors">—</div><div class="l">kafka.publish.errors</div></div>
+                    <div class="metric"><div class="v" id="mP95">—</div><div class="l">http.server.requests.p95 ms</div></div>
+                    <div class="metric"><div class="v mono" id="mHist">—</div><div class="l">histogram <span style="color:#10b981">true</span> badge</div></div>
+                </div>
+                <div id="metricsRaw" style="margin-top:.45rem; font-size:.66rem; color:#4b5a70; word-break:break-all;"></div>
             </div>
         </div>
     </div>
 
-    <footer>GitHub Actions + Jenkins pipeline · GitHub Pages (estático) + Render <code>yadinstore-jenkins-obs-live</code> en vivo · 100% free tier · CORS <code>ypmanrique2.github.io</code> only · rate-limit 10/min</footer>
+    <div class="card" style="margin-top:1rem">
+        <h2>Logs en vivo · ring 100 sanitizado password=*** trace demo-trace-abc123</h2>
+        <div style="font-size:.72rem; color:#6b7a90; margin-bottom:.6rem;">GET /api/v1/observability/logs?limit=20 · <span style="color:#22c55e">INFO</span> verde · <span style="color:#ef4444">ERROR</span> rojo · traceId mono · sanitize demo · poll 2s</div>
+        <div style="overflow-x:auto;">
+            <table class="logs-table">
+                <thead><tr><th>timestamp</th><th>level</th><th>message</th><th>traceId</th></tr></thead>
+                <tbody id="logsBody"><tr><td colspan="4" class="empty">Cargando logs…</td></tr></tbody>
+            </table>
+        </div>
+    </div>
+
+    <footer>GitHub Actions + Jenkins pipeline · GitHub Pages (estático) + Render <code>yadinstore-jenkins-obs-live</code> en vivo · 100% free tier · CORS <code>ypmanrique2.github.io</code> + backend live · rate-limit 10/min · BE-KD kafka-dashboard.html style</footer>
 
     <script>
         const $ = (id) => document.getElementById(id);
+        const BACKEND = 'https://yadinstore-backend.onrender.com';
         function esc(s) { return String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
         function statusClass(status) {
             const s = (status || '').toLowerCase();
@@ -173,8 +216,88 @@
                 </tr>`;
             }).join('') : '<tr><td colspan="4" class="empty">Sin snapshot todavía</td></tr>';
         }
+        async function fetchMetrics() {
+            try {
+                const r = await fetch(BACKEND + '/api/v1/observability/metrics', { headers: { 'Accept': 'application/json' } });
+                if (!r.ok) throw new Error('metrics ' + r.status);
+                const j = await r.json();
+                renderMetrics(j);
+            } catch (e) {
+                const badge = $('obsBackendStatus');
+                if (badge) { badge.textContent = 'backend error: ' + e.message; badge.className = 'badge err'; }
+            }
+        }
+        function renderMetrics(j) {
+            const d = j.data || {};
+            const outbox = d.outbox || {};
+            const kafka = d.kafka || {};
+            const httpM = d.http || {};
+            const pending = Number(outbox.pending ?? 0);
+            const published = Number(outbox.published ?? 0);
+            const failed = Number(outbox.failed ?? 0);
+            const errors = Number(kafka.errors ?? 0);
+            const p95 = Number(httpM.p95 ?? 0);
+            const hist = httpM.histogram === true;
+            const scrape = j.scrapeTime || '';
+            const mPending = $('mPending');
+            if (mPending) { mPending.textContent = String(pending); mPending.className = 'v ' + (pending > 0 ? 'warn' : 'ok'); }
+            const mPublished = $('mPublished');
+            if (mPublished) { mPublished.textContent = String(published); mPublished.className = 'v accent'; }
+            const mFailed = $('mFailed');
+            if (mFailed) { mFailed.textContent = String(failed); mFailed.className = 'v ' + (failed > 0 ? 'err' : ''); }
+            const mErrors = $('mErrors');
+            if (mErrors) { mErrors.textContent = String(errors); mErrors.className = 'v ' + (errors > 0 ? 'err' : 'ok'); }
+            const mP95 = $('mP95');
+            if (mP95) { mP95.textContent = (isFinite(p95) ? p95.toFixed(2) : '0.00') + ' ms'; mP95.className = 'v ok'; }
+            const mHist = $('mHist');
+            if (mHist) { mHist.innerHTML = hist ? '<span style="color:#10b981">true</span>' : '<span style="color:#6b7a90">false</span>'; }
+            const histFlag = $('histFlag');
+            if (histFlag) { histFlag.innerHTML = hist ? '<span style="color:#10b981">true</span>' : '<span style="color:#6b7a90">false</span>'; }
+            const scrapeEl = $('scrapeTime');
+            if (scrapeEl) { scrapeEl.textContent = scrape ? new Date(scrape).toLocaleTimeString() : '—'; }
+            const badge = $('obsBackendStatus');
+            if (badge) { badge.textContent = 'backend OK'; badge.className = 'badge ok'; }
+            const raw = $('metricsRaw');
+            if (raw) { raw.textContent = 'GET ' + BACKEND + '/api/v1/observability/metrics → pending=' + pending + ' published=' + published + ' failed=' + failed + ' kafka.errors=' + errors + ' p95=' + p95.toFixed(2) + 'ms histogram=' + hist; }
+            // sync KPIs obs
+            if ($('kpiPending')) $('kpiPending').textContent = String(pending);
+            if ($('obsPending')) $('obsPending').textContent = String(pending);
+            if ($('obsErrors')) $('obsErrors').textContent = String(errors);
+        }
+        async function fetchLogs() {
+            try {
+                const r = await fetch(BACKEND + '/api/v1/observability/logs?limit=20', { headers: { 'Accept': 'application/json' } });
+                if (!r.ok) throw new Error('logs ' + r.status);
+                const j = await r.json();
+                renderLogs(j);
+            } catch (e) {
+                const tbody = $('logsBody');
+                if (tbody) tbody.innerHTML = '<tr><td colspan="4" class="empty">Error logs: ' + esc(e.message) + '</td></tr>';
+            }
+        }
+        function renderLogs(j) {
+            const rows = Array.isArray(j.logs) ? j.logs : [];
+            const tbody = $('logsBody');
+            if (!tbody) return;
+            if (!rows.length) { tbody.innerHTML = '<tr><td colspan="4" class="empty">Sin logs — ring vacío</td></tr>'; return; }
+            tbody.innerHTML = rows.map(e => {
+                const lvl = String(e.level || 'INFO').toUpperCase();
+                let badgeCls = 'level-INFO';
+                if (lvl === 'ERROR') badgeCls = 'level-ERROR';
+                else if (lvl === 'WARN') badgeCls = 'level-WARN';
+                else if (lvl === 'DEBUG') badgeCls = 'level-DEBUG';
+                const ts = e.timestamp ? new Date(e.timestamp).toLocaleString() : '—';
+                const msg = String(e.message || '');
+                const tid = String(e.traceId || '—');
+                return `<tr><td class="mono" style="font-size:.70rem; color:#6b7a90; white-space:nowrap;">${esc(ts)}</td><td><span class="${badgeCls}">${esc(lvl)}</span></td><td>${esc(msg)}</td><td class="mono" style="font-size:.72rem; color:#93c5fd; word-break:break-all;">${esc(tid)}</td></tr>`;
+            }).join('');
+        }
         setInterval(poll, 2000);
+        setInterval(fetchMetrics, 2000);
+        setInterval(fetchLogs, 2000);
         poll();
+        fetchMetrics();
+        fetchLogs();
     </script>
 </body>
 </html>

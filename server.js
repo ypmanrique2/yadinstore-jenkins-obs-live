@@ -10,10 +10,11 @@
 // dummy `outbox_pending` y POSTea acá; dashboard pollea
 // GET /api/jenkins/live cada 2s.
 //
-// 3 streams futuros (estructura lista, datos dummy ok):
-//   - jenkins: queue, executors, jobs lastBuild
+// 3 streams live (BE-KD aesthetic):
+//   - jenkins: queue, executors, jobs lastBuild (poll 2s via agente)
 //   - docker: containers (docker ps) + events container
-//   - metrics: obs.outboxPending, obs.kafkaPublishErrors
+//   - metrics: obs.outboxPending/kafkaErrors + BE live Micrometer outbox.pending/published/failed + p95 histogram (poll 2s dashboard → backend /api/v1/observability/*)
+//   Dashboard BE-KD style: metrics cards + logs tabla con esc() + traceId mono, hist true verde, pending>0 amber, errors>0 red
 //
 // Endpoints:
 //   POST /api/jenkins/events    batch|single build/docker events (token)
@@ -239,7 +240,7 @@ const server = http.createServer((req, res) => {
     const file = path.join(__dirname, 'jenkins-dashboard.html');
     return fs.readFile(file, (err, data) => {
       if (err) { res.writeHead(500, { 'Content-Type': 'text/plain; charset=utf-8' }); res.end('jenkins-dashboard.html no encontrado'); return; }
-      res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8', 'Content-Security-Policy': "default-src 'self'; connect-src 'self' https://yadinstore-jenkins-obs-live.onrender.com https://ypmanrique2.github.io; style-src 'unsafe-inline'; script-src 'self' 'unsafe-inline'" });
+      res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8', 'Content-Security-Policy': "default-src 'self'; connect-src 'self' https://yadinstore-jenkins-obs-live.onrender.com https://yadinstore-backend.onrender.com https://ypmanrique2.github.io http://localhost:* http://127.0.0.1:*; style-src 'unsafe-inline'; script-src 'self' 'unsafe-inline'" });
       res.end(data);
     });
   }
