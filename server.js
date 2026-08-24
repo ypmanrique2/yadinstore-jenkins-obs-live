@@ -41,7 +41,11 @@ const TOKEN = process.env.DOCKER_LIVE_TOKEN || process.env.JENKINS_LIVE_TOKEN ||
 const MAX_EVENTS = 200;
 const RATE_LIMIT_MAX = 10; // POSTs por minuto por IP
 const RATE_WINDOW_MS = 60 * 1000;
-const ALLOWED_ORIGIN = 'https://ypmanrique2.github.io';
+const ALLOWED_ORIGINS = [
+  'https://ypmanrique2.github.io',
+  'https://yadinstore-jenkins-obs-live.onrender.com'
+];
+const ALLOWED_ORIGIN = ALLOWED_ORIGINS[0]; // keep for log
 
 // --- Estado en memoria (ring + 3 streams) ---
 const state = {
@@ -111,14 +115,26 @@ function rateLimited(req, res) {
   return false;
 }
 
+function isAllowedOrigin(origin) {
+  if (!origin) return false;
+  if (ALLOWED_ORIGINS.includes(origin)) return true;
+  if (origin.startsWith('http://localhost')) return true;
+  if (origin.startsWith('http://127.0.0.1')) return true;
+  if (origin === 'https://localhost' || origin === 'capacitor://localhost') return true;
+  return false;
+}
 function setCors(req, res) {
   const origin = req.headers.origin || '';
-  // Pages-only: solo el origin de GitHub Pages entra. Para local/dev también permitimos localhost
-  if (origin === ALLOWED_ORIGIN || origin.startsWith('http://localhost') || origin.startsWith('http://127.0.0.1')) {
+  // Pages-only + jenkins-obs-live + localhost: refleja origin permitido; si no permitido, fallback ALLOWED_ORIGIN (no *)
+  if (isAllowedOrigin(origin)) {
     res.setHeader('Access-Control-Allow-Origin', origin);
     res.setHeader('Vary', 'Origin');
+  } else if (!origin) {
+    // same-origin o curl sin Origin — no se exige CORS, pero deja header para probes
+    res.setHeader('Access-Control-Allow-Origin', ALLOWED_ORIGIN);
+    res.setHeader('Vary', 'Origin');
   } else {
-    // Producto: Pages-only, no *
+    // Producto: Pages-only, no * — refleja fallback seguro (no wildcard)
     res.setHeader('Access-Control-Allow-Origin', ALLOWED_ORIGIN);
     res.setHeader('Vary', 'Origin');
   }
