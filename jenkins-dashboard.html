@@ -64,7 +64,7 @@
 </head>
 <body>
     <h1>🔧 Jenkins en vivo <span>— YadinStore CI/CD Live</span></h1>
-    <div class="sub">Agente local → <code>docker events yadin-jenkins</code> + <code>Jenkins :8081/api/json</code> + metrics → Render free tier · Poll 2s · 3 streams: jenkins / docker / metrics → Observability BE-KD live</div>
+    <div class="sub">Agente local → <code>docker events yadin-jenkins</code> + <code>Jenkins :8081/api/json</code> + metrics → Render free tier · Poll jenkins 2s · metrics 5s · logs 10s · health 10s · 4 streams: jenkins / docker / metrics / health → Observability BE-KD live</div>
 
     <div class="agent" id="agent">
         <span class="dot off" id="dot"></span>
@@ -103,9 +103,10 @@
             </table>
             <div style="margin-top:1rem">
                 <h2>Métricas en vivo · Micrometer outbox.pending + p95 histogram</h2>
-                <div class="obs" style="margin-bottom:.45rem; font-size:.72rem; color:#6b7a90; flex-wrap:wrap;">
+                    <div class="obs" style="margin-bottom:.45rem; font-size:.72rem; color:#6b7a90; flex-wrap:wrap;">
                     <span>Micrometer Gauge + Counters + <span style="color:#10b981">p95 histogram: <b id="histFlag">—</b></span></span>
                     <span>· scrape <span id="scrapeTime" class="mono" style="color:#94a3b8">—</span></span>
+                    <span>· poll metrics 5s logs 10s buckets 30/min</span>
                     <span id="obsBackendStatus" class="badge">backend …</span>
                 </div>
                 <div class="metrics" id="metricsGrid">
@@ -121,9 +122,20 @@
         </div>
     </div>
 
+    <div class="card" style="margin-top:1rem" id="healthCard">
+        <h2>Health · backend + Elasticsearch cluster (proxy en BE, ES local only en prod)</h2>
+        <div style="font-size:.72rem; color:#6b7a90; margin-bottom:.6rem;">GET <code id="healthUrl">https://yadinstore-backend.onrender.com/api/v1/observability/health</code> + fallback <code>/actuator/health</code> · local <code>http://localhost:9200/_cluster/health</code> via proxy · poll 10s · badges green/yellow/red</div>
+        <div style="display:grid; grid-template-columns: repeat(2,1fr); gap:.6rem;" id="healthGrid">
+            <div class="metric"><div class="v" id="hBackend">—</div><div class="l">backend <span id="hBackendBadge" class="badge">…</span></div><div style="font-size:.66rem; color:#6b7a90; margin-top:.25rem;" id="hBackendDetail">—</div></div>
+            <div class="metric"><div class="v" id="hEs">—</div><div class="l">elasticsearch <span id="hEsBadge" class="badge">…</span></div><div style="font-size:.66rem; color:#6b7a90; margin-top:.25rem;" id="hEsDetail">—</div></div>
+        </div>
+        <div id="healthRaw" style="margin-top:.45rem; font-size:.66rem; color:#4b5a70; word-break:break-all;"></div>
+        <div style="margin-top:.35rem; font-size:.66rem; color:#4b5a70;">Shards: <span id="hShards" class="mono">—</span></div>
+    </div>
+
     <div class="card" style="margin-top:1rem">
         <h2>Logs en vivo · ring 100 sanitizado password=*** trace demo-trace-abc123</h2>
-        <div style="font-size:.72rem; color:#6b7a90; margin-bottom:.6rem;">GET /api/v1/observability/logs?limit=20 · <span style="color:#22c55e">INFO</span> verde · <span style="color:#ef4444">ERROR</span> rojo · traceId mono · sanitize demo · poll 2s</div>
+        <div style="font-size:.72rem; color:#6b7a90; margin-bottom:.6rem;">GET /api/v1/observability/logs?limit=20 · <span style="color:#22c55e">INFO</span> verde · <span style="color:#ef4444">ERROR</span> rojo · traceId mono · sanitize demo · poll 10s (bucket 30/min)</div>
         <div style="overflow-x:auto;">
             <table class="logs-table">
                 <thead><tr><th>timestamp</th><th>level</th><th>message</th><th>traceId</th></tr></thead>
@@ -132,7 +144,7 @@
         </div>
     </div>
 
-    <footer>GitHub Actions + Jenkins pipeline · GitHub Pages (estático) + Render <code>yadinstore-jenkins-obs-live</code> en vivo · 100% free tier · CORS <code>ypmanrique2.github.io</code> + backend live · rate-limit 10/min · BE-KD kafka-dashboard.html style</footer>
+    <footer>GitHub Actions + Jenkins pipeline · GitHub Pages (estático) + Render <code>yadinstore-jenkins-obs-live</code> en vivo · 100% free tier · CORS <code>ypmanrique2.github.io</code> + backend live · rate-limit 30/min por bucket (metrics/logs/health) · poll metrics 5s logs 10s health 10s · BE-KD kafka-dashboard.html style</footer>
 
     <script>
         const $ = (id) => document.getElementById(id);
@@ -219,6 +231,11 @@
         async function fetchMetrics() {
             try {
                 const r = await fetch(BACKEND + '/api/v1/observability/metrics', { headers: { 'Accept': 'application/json' } });
+                if (r.status === 429) {
+                    const badge = $('obsBackendStatus');
+                    if (badge) { badge.textContent = '429 rate-limited (30/min) retry 60s'; badge.className = 'badge warn'; }
+                    return;
+                }
                 if (!r.ok) throw new Error('metrics ' + r.status);
                 const j = await r.json();
                 renderMetrics(j);
@@ -256,7 +273,7 @@
             const scrapeEl = $('scrapeTime');
             if (scrapeEl) { scrapeEl.textContent = scrape ? new Date(scrape).toLocaleTimeString() : '—'; }
             const badge = $('obsBackendStatus');
-            if (badge) { badge.textContent = 'backend OK'; badge.className = 'badge ok'; }
+            if (badge) { badge.textContent = 'backend OK · 30/min bucket separado'; badge.className = 'badge ok'; }
             const raw = $('metricsRaw');
             if (raw) { raw.textContent = 'GET ' + BACKEND + '/api/v1/observability/metrics → pending=' + pending + ' published=' + published + ' failed=' + failed + ' kafka.errors=' + errors + ' p95=' + p95.toFixed(2) + 'ms histogram=' + hist; }
             // sync KPIs obs
@@ -267,6 +284,11 @@
         async function fetchLogs() {
             try {
                 const r = await fetch(BACKEND + '/api/v1/observability/logs?limit=20', { headers: { 'Accept': 'application/json' } });
+                if (r.status === 429) {
+                    const tbody = $('logsBody');
+                    if (tbody) tbody.innerHTML = '<tr><td colspan="4" class="empty">429 Too many observability requests. Retry after 60s. (bucket 30/min)</td></tr>';
+                    return;
+                }
                 if (!r.ok) throw new Error('logs ' + r.status);
                 const j = await r.json();
                 renderLogs(j);
@@ -292,12 +314,96 @@
                 return `<tr><td class="mono" style="font-size:.70rem; color:#6b7a90; white-space:nowrap;">${esc(ts)}</td><td><span class="${badgeCls}">${esc(lvl)}</span></td><td>${esc(msg)}</td><td class="mono" style="font-size:.72rem; color:#93c5fd; word-break:break-all;">${esc(tid)}</td></tr>`;
             }).join('');
         }
+        function esBadge(status) {
+            const s = String(status||'').toLowerCase();
+            if (s === 'green') return {cls:'ok', label:'GREEN'};
+            if (s === 'yellow') return {cls:'warn', label:'YELLOW'};
+            if (s === 'red') return {cls:'err', label:'RED'};
+            if (s === 'unavailable') return {cls:'', label:'UNAVAILABLE'};
+            return {cls:'', label: String(status||'—').toUpperCase()};
+        }
+        async function fetchHealth() {
+            const hBackend = $('hBackend');
+            const hEs = $('hEs');
+            const hBackendBadge = $('hBackendBadge');
+            const hEsBadge = $('hEsBadge');
+            const hBackendDetail = $('hBackendDetail');
+            const hEsDetail = $('hEsDetail');
+            const hShards = $('hShards');
+            const healthRaw = $('healthRaw');
+            try {
+                // Principal: backend proxy que ya incluye ES cluster health (ES local only en prod)
+                const r = await fetch(BACKEND + '/api/v1/observability/health', { headers: { 'Accept': 'application/json' } });
+                if (r.status === 429) {
+                    if (hBackend) hBackend.textContent = '429';
+                    if (hBackendBadge) { hBackendBadge.textContent = 'rate-limited 30/min'; hBackendBadge.className = 'badge warn'; }
+                    return;
+                }
+                if (!r.ok) throw new Error('health ' + r.status);
+                const j = await r.json();
+                const be = j.backend || {};
+                const es = j.elasticsearch || {};
+                const beStatus = String(be.status || 'UP');
+                const esStatus = String(es.status || es.cluster_status || 'unavailable');
+                const beIsUp = beStatus.toUpperCase() === 'UP';
+                const esMeta = esBadge(esStatus);
+                if (hBackend) { hBackend.textContent = beStatus; hBackend.className = 'v ' + (beIsUp ? 'ok' : 'err'); }
+                if (hBackendBadge) { hBackendBadge.textContent = beIsUp ? 'UP' : beStatus; hBackendBadge.className = 'badge ' + (beIsUp ? 'ok' : 'err'); }
+                if (hBackendDetail) hBackendDetail.textContent = 'GET /actuator/health → ' + beStatus + ' · ' + (j.timestamp ? new Date(j.timestamp).toLocaleTimeString() : '');
+                if (hEs) { hEs.textContent = esMeta.label; hEs.className = 'v ' + (esMeta.cls === 'ok' ? 'ok' : esMeta.cls === 'warn' ? 'warn' : esMeta.cls === 'err' ? 'err' : ''); }
+                if (hEsBadge) { hEsBadge.textContent = esMeta.label; hEsBadge.className = 'badge ' + esMeta.cls; }
+                const shardsTxt = es.active_shards !== undefined ? `active ${es.active_shards} · relocating ${es.relocating_shards||0} · initializing ${es.initializing_shards||0} · unassigned ${es.unassigned_shards||0} · cluster ${esc(es.cluster_name||'')}` : (es.error ? esc(es.error) : esc(esStatus));
+                if (hEsDetail) hEsDetail.textContent = es.raw ? esc(es.raw.substring(0,160)) : shardsTxt;
+                if (hShards) hShards.textContent = shardsTxt;
+                if (healthRaw) healthRaw.textContent = 'GET ' + BACKEND + '/api/v1/observability/health → backend=' + beStatus + ' es=' + esStatus + ' shards=' + shardsTxt;
+                // También intenta fallback directo a /actuator/health para validar permitAll (si proxy falló por auth)
+                if (!beIsUp) {
+                  try {
+                    const r2 = await fetch(BACKEND + '/actuator/health', { headers:{'Accept':'application/json'} });
+                    if (r2.ok) { const j2 = await r2.json(); if (j2.status) { if(hBackend) hBackend.textContent = j2.status; if(hBackendBadge) {hBackendBadge.textContent=j2.status; hBackendBadge.className='badge '+(j2.status==='UP'?'ok':'err');} } }
+                  } catch(_){}
+                }
+            } catch (e) {
+                // Fallback: intenta /actuator/health directo (permitAll) + fetch ES local si existe
+                try {
+                    const r2 = await fetch(BACKEND + '/actuator/health', { headers: { 'Accept': 'application/json' } });
+                    if (r2.ok) {
+                        const j2 = await r2.json();
+                        const st = String(j2.status || 'UP');
+                        if (hBackend) { hBackend.textContent = st; hBackend.className = 'v ' + (st==='UP'?'ok':'err'); }
+                        if (hBackendBadge) { hBackendBadge.textContent = st; hBackendBadge.className = 'badge ' + (st==='UP'?'ok':'err'); }
+                        if (hBackendDetail) hBackendDetail.textContent = 'GET /actuator/health → ' + st + ' (fallback)';
+                    } else {
+                        if (hBackend) { hBackend.textContent = 'ERR'; hBackend.className = 'v err'; }
+                        if (hBackendBadge) { hBackendBadge.textContent = 'actuator ' + r2.status; hBackendBadge.className = 'badge err'; }
+                    }
+                } catch (e2) {
+                    if (hBackend) { hBackend.textContent = 'ERR'; hBackend.className = 'v err'; }
+                    if (hBackendBadge) { hBackendBadge.textContent = e.message; hBackendBadge.className = 'badge err'; }
+                }
+                // Intenta ES local directo solo si existe (dev)
+                try {
+                    const rEs = await fetch('http://localhost:9200/_cluster/health?pretty', { headers:{'Accept':'application/json'} });
+                    if (rEs.ok) {
+                        const je = await rEs.json();
+                        const st = String(je.status || 'unknown');
+                        const m = esBadge(st);
+                        if (hEs) { hEs.textContent = m.label; hEs.className = 'v ' + (m.cls==='ok'?'ok':m.cls==='warn'?'warn':m.cls==='err'?'err':''); }
+                        if (hEsBadge) { hEsBadge.textContent = m.label; hEsBadge.className='badge '+m.cls; }
+                        if (hShards) hShards.textContent = `local ES direct → active ${je.active_shards||0} cluster ${je.cluster_name||''}`;
+                    }
+                } catch(_){}
+                if (healthRaw) healthRaw.textContent = 'Health error: ' + esc(e.message);
+            }
+        }
         setInterval(poll, 2000);
-        setInterval(fetchMetrics, 2000);
-        setInterval(fetchLogs, 2000);
+        setInterval(fetchMetrics, 5000);
+        setInterval(fetchLogs, 10000);
+        setInterval(fetchHealth, 10000);
         poll();
         fetchMetrics();
         fetchLogs();
+        fetchHealth();
     </script>
 </body>
 </html>
