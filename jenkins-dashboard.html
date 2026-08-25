@@ -124,7 +124,7 @@
 
     <div class="card" style="margin-top:1rem" id="healthCard">
         <h2>Health · backend + Elasticsearch cluster (proxy en BE, ES local only en prod)</h2>
-        <div style="font-size:.72rem; color:#6b7a90; margin-bottom:.6rem;">GET <code id="healthUrl">https://yadinstore-backend.onrender.com/api/v1/observability/health</code> + fallback <code>/actuator/health</code> · local <code>http://localhost:9200/_cluster/health</code> via proxy · poll 10s · badges green/yellow/red</div>
+        <div style="font-size:.72rem; color:#6b7a90; margin-bottom:.6rem;">GET <code id="healthUrl">https://yadinstore-backend.onrender.com/api/v1/observability/health</code> + fallback <code>/actuator/health</code> · local <code>http://localhost:9200/_cluster/health</code> via proxy · poll 10s · badges green/yellow/red · <span style="color:#eab308;">ES prod N/A free tier = LOCAL ONLY amarillo (no rojo)</span> · ES demo <code>yadinstore-logs-2026.08.23 green 2 docs</code> en docker-compose</div>
         <div style="display:grid; grid-template-columns: repeat(2,1fr); gap:.6rem;" id="healthGrid">
             <div class="metric"><div class="v" id="hBackend">—</div><div class="l">backend <span id="hBackendBadge" class="badge">…</span></div><div style="font-size:.66rem; color:#6b7a90; margin-top:.25rem;" id="hBackendDetail">—</div></div>
             <div class="metric"><div class="v" id="hEs">—</div><div class="l">elasticsearch <span id="hEsBadge" class="badge">…</span></div><div style="font-size:.66rem; color:#6b7a90; margin-top:.25rem;" id="hEsDetail">—</div></div>
@@ -204,15 +204,29 @@
                 return `<tr><td>${esc(job.name)}</td><td>${esc(num)}</td><td class="${resultClass(res)}">${esc(res)}</td><td>${esc(dur)}</td></tr>`;
             }).join('') : '<tr><td colspan="4" class="empty">Sin jobs todavía</td></tr>';
 
-            // Events (últimos 40)
+            // Events (últimos 40) — si agente offline o sin builds, muestra placeholder honesto con instrucciones (no rojo error)
             const ev = (Array.isArray(data.events) ? data.events : []).slice(-40).reverse();
-            $('events').innerHTML = ev.length ? ev.map(e => `
+            if (ev.length) {
+                $('events').innerHTML = ev.map(e => `
                 <div class="ev">
                     <time>${esc(e.receivedAt ? new Date(e.receivedAt).toLocaleTimeString() : (e.ts ? new Date(e.ts*1000).toLocaleTimeString() : ''))}</time>
                     <span class="type">${esc(e.Type || e.type || 'build')}</span>
                     <span class="act">${esc(e.Action || e.action || e.result || e.job || '?')}</span>
                     <span class="actor">${esc((e.Actor && (e.Actor.Name||e.Actor.ID)) || e.job || e.actor || e.causeChain || '')}</span>
-                </div>`).join('') : '<div class="empty">Sin eventos todavía</div>';
+                </div>`).join('');
+            } else {
+                const alive = (data.lastSeen && (new Date(data.serverTime).getTime() - new Date(data.lastSeen).getTime()) < 15000);
+                const agentHint = alive ? 'Agente ONLINE pero aún sin docker events/builds (normal si Jenkins idle).' : 'Agente OFFLINE — ejecutá <code>.\\jenkins-obs-agent.ps1</code> en local (requiere Docker Desktop + Jenkins :8081).';
+                $('events').innerHTML = `<div class="empty" style="line-height:1.5;">
+                    <div>Sin eventos todavía — <span style="color:#eab308;">esperado en free tier si el agente no está corriendo</span></div>
+                    <div style="margin-top:.4rem; color:#94a3b8;">${agentHint}</div>
+                    <div style="margin-top:.6rem; display:flex; gap:.4rem; flex-wrap:wrap; align-items:center;">
+                        <a href="http://localhost:8081/job/yadinstore-demo-pipeline/build" target="_blank" rel="noopener" style="display:inline-block; background:#1a2130; border:1px solid #2a3547; border-radius:6px; padding:.3rem .6rem; color:#60a5fa; text-decoration:none; font-size:.75rem;">▶ Ejecutar build en Jenkins (:8081)</a>
+                        <span style="font-size:.70rem; color:#6b7a90;">o <code>docker events --format json --filter container=yadinstore-jenkins</code> para flujo docker</span>
+                    </div>
+                    <div style="margin-top:.4rem; font-size:.70rem; color:#4b5a70;">Cuando el agente esté ONLINE, este panel muestra últimos 40 eventos (jenkins builds + docker events) · poll 2s · ring 200</div>
+                </div>`;
+            }
 
             // Containers — fix: c.Ports puede venir como string "8081:8080" desde docker ps
             const cs = Array.isArray(data.containers) ? data.containers : [];
@@ -319,8 +333,20 @@
             if (s === 'green') return {cls:'ok', label:'GREEN'};
             if (s === 'yellow') return {cls:'warn', label:'YELLOW'};
             if (s === 'red') return {cls:'err', label:'RED'};
-            if (s === 'unavailable') return {cls:'', label:'UNAVAILABLE'};
-            return {cls:'', label: String(status||'—').toUpperCase()};
+            // Prod free tier: ES es local demo (docker-compose yadinstore-cicd-demo, yadinstore-logs-2026.08.23 green 2 docs),
+            // en Render no hay ES -> backend proxyea y responde unavailable/unknown. No es error rojo, es esperado -> badge amarillo.
+            if (s === 'unavailable' || s === 'unknown' || s === '—' || s === '') return {cls:'warn', label:'LOCAL ONLY'};
+            return {cls:'warn', label: String(status||'—').toUpperCase()};
+        }
+        function esDetailMessage(es, esStatus) {
+            const s = String(esStatus||'').toLowerCase();
+            // Si ES unavailable/unknown en prod free tier -> mensaje honesto, no rojo error.
+            if (s === 'unavailable' || s === 'unknown' || !esStatus || s === '—') {
+                return 'ES local demo · yadinstore-cicd-demo docker-compose (yadinstore-logs-2026.08.23 green 2 docs) · prod N/A free tier (ring 100 + Grafana Cloud roadmap)';
+            }
+            if (es.active_shards !== undefined) return `active ${es.active_shards} · relocating ${es.relocating_shards||0} · initializing ${es.initializing_shards||0} · unassigned ${es.unassigned_shards||0} · cluster ${esc(es.cluster_name||'')}`;
+            if (es.error) return esc(es.error);
+            return esc(esStatus);
         }
         async function fetchHealth() {
             const hBackend = $('hBackend');
@@ -344,18 +370,26 @@
                 const be = j.backend || {};
                 const es = j.elasticsearch || {};
                 const beStatus = String(be.status || 'UP');
-                const esStatus = String(es.status || es.cluster_status || 'unavailable');
+                const esStatusRaw = String(es.status || es.cluster_status || 'unavailable');
+                const esStatus = esStatusRaw.toLowerCase();
                 const beIsUp = beStatus.toUpperCase() === 'UP';
-                const esMeta = esBadge(esStatus);
+                const esMeta = esBadge(esStatusRaw);
+                const isEsLocalOnly = (esStatus === 'unavailable' || esStatus === 'unknown');
                 if (hBackend) { hBackend.textContent = beStatus; hBackend.className = 'v ' + (beIsUp ? 'ok' : 'err'); }
                 if (hBackendBadge) { hBackendBadge.textContent = beIsUp ? 'UP' : beStatus; hBackendBadge.className = 'badge ' + (beIsUp ? 'ok' : 'err'); }
                 if (hBackendDetail) hBackendDetail.textContent = 'GET /actuator/health → ' + beStatus + ' · ' + (j.timestamp ? new Date(j.timestamp).toLocaleTimeString() : '');
-                if (hEs) { hEs.textContent = esMeta.label; hEs.className = 'v ' + (esMeta.cls === 'ok' ? 'ok' : esMeta.cls === 'warn' ? 'warn' : esMeta.cls === 'err' ? 'err' : ''); }
-                if (hEsBadge) { hEsBadge.textContent = esMeta.label; hEsBadge.className = 'badge ' + esMeta.cls; }
-                const shardsTxt = es.active_shards !== undefined ? `active ${es.active_shards} · relocating ${es.relocating_shards||0} · initializing ${es.initializing_shards||0} · unassigned ${es.unassigned_shards||0} · cluster ${esc(es.cluster_name||'')}` : (es.error ? esc(es.error) : esc(esStatus));
-                if (hEsDetail) hEsDetail.textContent = es.raw ? esc(es.raw.substring(0,160)) : shardsTxt;
+                // ES: si unavailable/unknown -> badge amarillo LOCAL ONLY, no rojo error (free tier honesto)
+                if (hEs) { hEs.textContent = esMeta.label; hEs.className = 'v ' + (esMeta.cls === 'ok' ? 'ok' : esMeta.cls === 'warn' ? 'warn' : esMeta.cls === 'err' ? 'err' : (isEsLocalOnly ? 'warn' : '')); }
+                if (hEsBadge) { hEsBadge.textContent = esMeta.label; hEsBadge.className = 'badge ' + (esMeta.cls || (isEsLocalOnly ? 'warn' : '')); }
+                const honestEsDetail = esDetailMessage(es, esStatusRaw);
+                const shardsTxt = isEsLocalOnly ? honestEsDetail : (es.active_shards !== undefined ? `active ${es.active_shards} · relocating ${es.relocating_shards||0} · initializing ${es.initializing_shards||0} · unassigned ${es.unassigned_shards||0} · cluster ${esc(es.cluster_name||'')}` : (es.error ? esc(es.error) : esc(esStatusRaw)));
+                if (hEsDetail) {
+                    hEsDetail.textContent = shardsTxt;
+                    // tooltip honesto si es local only
+                    if (isEsLocalOnly) hEsDetail.title = 'ES solo en docker-compose local (yadinstore-cicd-demo). En Render free tier no hay ES: backend proxyea y responde unavailable. Roadmap Grafana Cloud Loki.';
+                }
                 if (hShards) hShards.textContent = shardsTxt;
-                if (healthRaw) healthRaw.textContent = 'GET ' + BACKEND + '/api/v1/observability/health → backend=' + beStatus + ' es=' + esStatus + ' shards=' + shardsTxt;
+                if (healthRaw) healthRaw.textContent = 'GET ' + BACKEND + '/api/v1/observability/health → backend=' + beStatus + ' es=' + esStatusRaw + ' (' + (isEsLocalOnly ? 'prod N/A free tier' : 'cluster') + ') · ' + shardsTxt;
                 // También intenta fallback directo a /actuator/health para validar permitAll (si proxy falló por auth)
                 if (!beIsUp) {
                   try {
