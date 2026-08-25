@@ -26,7 +26,7 @@
 
 param(
     [string]$Endpoint = "https://yadinstore-jenkins-obs-live.onrender.com",
-    [string]$Token = "pDq9yAo20ds+5SSMVt8LXfjoop6Kakc3VqB+US+XB2w=",
+    [string]$Token = "KrbZxoYlvPYkShCBsTRILLth5+IZkWsgPsfdz9vOWmY=",
     [int]$SnapshotIntervalSec = 5,
     [int]$BatchIntervalSec = 2,
     [string]$JenkinsUrl = "http://localhost:8081",
