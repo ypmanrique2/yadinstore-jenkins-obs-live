@@ -13,12 +13,12 @@
 # healthCheckPath: /api/jenkins/live (público, no requiere token)
 # CORS Pages-only: https://ypmanrique2.github.io (no *)
 # Rate-limit: 10/min/IP en POSTs
-# NOTA free tier 1h laboral (2026-08-28): Activo para BE-JD skills, 1h laboral 13% $0
-# BE+BE-JD 1h L-V 08:30-17:30 Bogotá = 9 pings/día ×22 =198 hits/mes ×15min=49.5h por servicio → 99h (13% cuota $0)
-# vs 30m laboral 198h 26% $0 — 1h ahorra 99h, deja 651h libres (ambos $0). yadinstore-cicd-demo-live
+# NOTA free tier 15m BE + 30m BE-JD laboral (2026-08-31 f029cd7): Activo para BE-JD skills, 297h 39% $0 (BE 198h + BE-JD 99h deja 453h libres)
+# BE 15m L-V 08:30-17:30 Bogotá = 36 pings/día ×22=792×15min=198h + BE-JD 30m 18×22=396×15min=99h →297h 39% $0 vs 1h 99h 13% deja 651h (ambos $0, 15m 0 wake gap≈sleep). yadinstore-cicd-demo-live
 # sigue pausado (services: [] ahorra 60h). Free tier duerme tras ~15m → wake 30-60s, luego ~200ms.
-# Keep-warm: .github/workflows/keep-warm.yml cron 0 * * * * + guard 510-1050 + UptimeRobot 1h
-# + cron-job.org 1h L-V America/Bogota. Ver yadinStore-Spec/avance_28-08-2026-render-1h.md
+# Keep-warm: .github/workflows/keep-warm.yml cron */15 * * * * + guard 510-1050 L-V + BE MIN%15==0 + BE-JD MIN%30==0 + UptimeRobot BE 15m + BE-JD 30m vivo (Down 3d auto-resuelve próximo Up 15m)
+# + cron-job.org 15m/30m L-V America/Bogota. Ver yadinStore-Spec/avance_28-08-2026-render-1h.md + avance_28-08-2026-k8s-hibrido-min.md (297h)
+# Incidente UptimeRobot Down 3d 7h 50m Started Aug 28 14:07 GMT-5 Keyword serverTime falló en Suspended → auto Up 15m tras keep-warm 15m/30m f029cd7 9:49 PM Live, o manual Resolve Incident. workflow_dispatch + cron re-habilita tras Manual Deploy.
 # ================================================================
 
 services:
