@@ -13,6 +13,12 @@
 # healthCheckPath: /api/jenkins/live (público, no requiere token)
 # CORS Pages-only: https://ypmanrique2.github.io (no *)
 # Rate-limit: 10/min/IP en POSTs
+# NOTA free tier 1h laboral (2026-08-28): Activo para BE-JD skills, 1h laboral 13% $0
+# BE+BE-JD 1h L-V 08:30-17:30 Bogotá = 9 pings/día ×22 =198 hits/mes ×15min=49.5h por servicio → 99h (13% cuota $0)
+# vs 30m laboral 198h 26% $0 — 1h ahorra 99h, deja 651h libres (ambos $0). yadinstore-cicd-demo-live
+# sigue pausado (services: [] ahorra 60h). Free tier duerme tras ~15m → wake 30-60s, luego ~200ms.
+# Keep-warm: .github/workflows/keep-warm.yml cron 0 * * * * + guard 510-1050 + UptimeRobot 1h
+# + cron-job.org 1h L-V America/Bogota. Ver yadinStore-Spec/avance_28-08-2026-render-1h.md
 # ================================================================
 
 services:
