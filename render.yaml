@@ -13,14 +13,13 @@
 # healthCheckPath: /api/jenkins/live (público, no requiere token)
 # CORS Pages-only: https://ypmanrique2.github.io (no *)
 # Rate-limit: 10/min/IP en POSTs
-# NOTA free tier 7m BE + 14m BE-JD laboral split 8-12+14-18 (2026-09-01 ACTUAL): 352h 46.9% $0 (BE 8h continuo 176h + BE-JD 14m 34.3/d 176h deja 398h libres)
-# BE 7m L-V 8-12+14-18 Bogotá = 68.6 pings/día 8.57/h ×22≈1508 pero 8h continuo 176h (gap 7m <15m sleep → 0 wake) + BE-JD 14m 34.3/día ×22≈754×15min pero continuo 176h →352h 46.9% $0 vs 10m/20m 9h 346.5h 46% deja 403.5h vs 15m/30m 297h 39% deja 453h vs 1h 99h 13% deja 651h (todos $0 hasta 750h). yadinstore-cicd-demo-live
-# sigue pausado (services: [] ahorra 60h). Free tier duerme tras ~15m → wake 30-60s, luego ~200ms.
-# UptimeRobot FREE 24/7 7m=720h/serv ×2=1440h 192% >>750h ⇒ SUSPENDE. Por eso 7m/14m 24/7 NO viable; necesita cron-job.org o keep-warm laboral.
-# - UptimeRobot 2026-09-01: BE 7m 61.13% Up + BE-JD 14m 42.447% Up — es 24/7 sin filtro L-V 8-12+14-18 → 1440h 192% suspende. Migrar a cron-job.org split laboral.
-# Keep-warm: .github/workflows/keep-warm.yml cron */7 * * * 1-5 + guard split 8-12+14-18 (480-719,840-1079) + BE MIN%7==0 + BE-JD MIN%14==0 + UptimeRobot 7m/14m 24/7 suspende → usar cron-job.org 7m/14m laboral
-# + cron-job.org: Jobs → Create → URL https://yadinstore-backend.onrender.com/actuator/health → Every 7 minutes → Time frame 08:00-11:59 Mon-Fri America/Bogota → Save (0$). BE-JD 14m similar Every 14m mismo split. Ver yadinStore-Spec/avance_01-09-2026-7m-14m.md (7m/14m 352h split)
-# Alternativa cron-job.org vs keep-warm: ambos $0 352h; cron-job.org no consume GitHub Actions minutes; keep-warm es backup si cron-job.org falla. UptimeRobot 7m 24/7 queda descartado por 192%.
+# NOTA free tier 15m BE +15m BE-JD laboral split 8-12+14-18 L-V 1-5 (2026-09-02 ACTUAL, cron-job.org 15m L-V): 352h 46.9% $0 L-V vs 416h 55.4% L-Sáb (ambos $0, L-V ahorra 64h, Domingo libre — RECOMENDADO) — BE+BE-JD ambos */15 8-12,14-18 L-V, 4/h×8h=32/día×22=704×15min=176h/serv×2=352h deja 398h; L-Sáb 1-6 32/d×26=832×15min=208h/serv×2=416h deja 334h (+64h)
+# Hist: 7m/14m 352h 46.9% (68.6/d +34.3/d) 8h continuo, 10m/20m 9h 346.5h 46%, 15m/30m 297h 39%, 1h 99h 13% — todos $0. yadinstore-cicd-demo-live sigue pausado services: [] ahorra 60h. Free tier duerme tras ~15m → wake 30-60s, luego ~200ms.
+# UptimeRobot FREE 24/7 7m=720h/serv ×2=1440h 192% >>750h ⇒ SUSPENDE. Por eso 7m/14m 24/7 y 15m 24/7 NO viable; necesita cron-job.org L-V split o keep-warm L-V.
+# - UptimeRobot 2026-09-01: BE 15m + BE-JD 30m migrado a cron-job.org 15m ambos L-V 1-5 (antes BE 7m 61% + BE-JD 14m 42% 24/7 1440h suspende). Migrar a cron-job.org split L-V.
+# Keep-warm: .github/workflows/keep-warm.yml cron */15 * * * 1-5 + guard split 8-12+14-18 + BE+BE-JD MIN%15==0 + L-V 352h vs L-Sáb 416h → usar cron-job.org 15m L-V laboral
+# + cron-job.org: Jobs → Create → URL https://yadinstore-backend.onrender.com/actuator/health → Every 15 minutes → Time frame 08:00-11:59 +14:00-17:59 Mon-Fri America/Bogota → Save (0$). BE-JD 15m similar mismo split L-V (no 1-6). Ver yadinStore-Spec/avance_02-09-2026.md (15m L-V 352h vs L-Sáb 416h, KAFKA fix) + avance_01-09-2026.md
+# Alternativa cron-job.org vs keep-warm: ambos $0 352h L-V; cron-job.org no consume GitHub Actions minutes; keep-warm es backup si cron-job.org falla. UptimeRobot queda descartado.
 # ================================================================
 
 services:
