@@ -1,0 +1,63 @@
+{
+  "schema_version": 1,
+  "diagram_type": "architecture",
+  "meta": {
+    "title": "YadinStore — Topología 3D Completa (Prod + Local + Observabilidad)",
+    "quality_profile": "showcase",
+    "animation": "trace",
+    "viewBox": [1378, 620],
+    "views": [
+      { "id": "request-path", "label": "Ruta principal", "focus": ["users", "fe", "be", "mongo", "kafka"], "note": "Navegador al backend, Atlas y Aiven Kafka." },
+      { "id": "observabilidad", "label": "Observabilidad", "focus": ["be", "beKd", "beJd", "obsAgent", "prometheus", "grafana"], "note": "BE-KD/BE-JD ring 200 + Prometheus 9090 Grafana 10.4.3 ES 9200 Kibana 5601." },
+      { "id": "cicd-keepalive", "label": "CI/CD & Keep-Warm", "focus": ["cicd", "keepWarm", "be", "jenkins"], "note": "GitHub Actions + GHCR + keep-warm 15m L-V split." }
+    ]
+  },
+  "components": [
+    { "id": "users", "type": "external", "label": "Users", "sublabel": "Browser / Mobile :4200", "pos": [40, 280], "size": [130, 64], "tag": "HTTPS" },
+    { "id": "fe", "type": "frontend", "label": "yadinstore-frontend", "sublabel": "Render Static SPA", "pos": [220, 280], "size": [148, 62], "tag": "Angular 21 Nx" },
+    { "id": "mfeDa", "type": "frontend", "label": "yadinstore-admin", "sublabel": "Render Static MFE-DA", "pos": [220, 460], "size": [148, 62], "tag": "MFE Dashboard Admin" },
+    { "id": "cicd", "type": "cloud", "label": "GitHub Actions", "sublabel": "GHCR + 3 workflows", "pos": [440, 90], "size": [148, 62], "tag": "build · test · deploy" },
+    { "id": "be", "type": "backend", "label": "yadinstore-backend", "sublabel": "Render Docker Spring Boot 3.5", "pos": [430, 280], "size": [168, 66], "tag": "Java 21 :8080" },
+    { "id": "mongo", "type": "database", "label": "MongoDB Atlas", "sublabel": "M0 yadinstore_prod", "pos": [430, 530], "size": [168, 62], "tag": "Atlas M0" },
+    { "id": "beKd", "type": "cloud", "label": "BE-KD", "sublabel": "kafka-dashboard.html", "pos": [640, 100], "size": [148, 62], "tag": "same-origin" },
+    { "id": "beJd", "type": "cloud", "label": "BE-JD", "sublabel": "jenkins-dashboard.html", "pos": [640, 280], "size": [148, 62], "tag": "Node ring 200" },
+    { "id": "obsAgent", "type": "backend", "label": "jenkins-obs-agent.ps1", "sublabel": "Ring 100 · 7 containers", "pos": [640, 460], "size": [148, 62], "tag": "POST 2s" },
+    { "id": "kafka", "type": "messagebus", "label": "Aiven Kafka", "sublabel": "28255 SASL_SSL SCRAM-256", "pos": [640, 530], "size": [148, 62], "tag": "kafka-1b23b004" },
+    { "id": "keepWarm", "type": "external", "label": "Keep-Warm", "sublabel": "cron-job.org 15m L-V", "pos": [850, 100], "size": [158, 62], "tag": "15m L-V split" },
+    { "id": "prometheus", "type": "cloud", "label": "Prometheus", "sublabel": ":9090  scrape", "pos": [850, 280], "size": [148, 62], "tag": "scrape 5s" },
+    { "id": "jenkins", "type": "backend", "label": "Jenkins", "sublabel": ":8081 Docker DinD", "pos": [850, 460], "size": [148, 62], "tag": "Pipeline as Code" },
+    { "id": "kafkaUi", "type": "cloud", "label": "Kafka UI / Redpanda", "sublabel": ":8090 yadinstore.*", "pos": [850, 530], "size": [148, 62], "tag": "5 topics x3" },
+    { "id": "grafana", "type": "cloud", "label": "Grafana", "sublabel": "10.4.3 :3000", "pos": [1060, 280], "size": [138, 62], "tag": "Prometheus DS" },
+    { "id": "elastic", "type": "database", "label": "Elasticsearch", "sublabel": ":9200 yadinstore-logs-*", "pos": [1060, 460], "size": [138, 62], "tag": "ILM 14d" },
+    { "id": "kibana", "type": "cloud", "label": "Kibana", "sublabel": ":5601 Discover", "pos": [1226, 460], "size": [130, 62], "tag": "logs view" },
+    { "id": "mailhog", "type": "backend", "label": "MailHog", "sublabel": "smtp :1025 ui :8025", "pos": [40, 530], "size": [130, 62], "tag": "dev mail" }
+  ],
+  "boundaries": [
+    { "kind": "region", "label": "Render Prod (Free Tier) — backend / frontend / admin / jenkins-obs-live", "wraps": ["fe", "mfeDa", "be", "beKd", "beJd"], "pad": 16 },
+    { "kind": "region", "label": "Aiven Cloud — Kafka 4.2.1", "wraps": ["kafka", "kafkaUi"], "pad": 14 },
+    { "kind": "region", "label": "MongoDB Atlas — M0", "wraps": ["mongo"], "pad": 14 },
+    { "kind": "security-group", "label": "ci-cd-infra docker-compose localhost (12 servicios)", "wraps": ["jenkins", "prometheus", "grafana", "elastic", "kibana", "kafkaUi", "mailhog"], "pad": 8 },
+    { "kind": "region", "label": "GitHub Cloud — Actions + GHCR + keep-warm.yml", "wraps": ["cicd", "keepWarm"], "pad": 14 }
+  ],
+  "connections": [
+    { "from": "users", "to": "fe", "variant": "emphasis" },
+    { "from": "users", "to": "mfeDa", "variant": "emphasis" },
+    { "from": "fe", "to": "be", "variant": "emphasis" },
+    { "from": "mfeDa", "to": "be", "variant": "emphasis" },
+    { "from": "be", "to": "mongo", "variant": "emphasis" },
+    { "from": "be", "to": "kafka", "variant": "security" },
+    { "from": "be", "to": "beKd", "variant": "dashed", "fromSide": "top", "toSide": "bottom", "route": "orthogonal-v" },
+    { "from": "prometheus", "to": "grafana", "variant": "dashed" },
+    { "from": "elastic", "to": "kibana" },
+    { "from": "obsAgent", "to": "beJd", "variant": "security" },
+    { "from": "jenkins", "to": "obsAgent", "variant": "dashed", "fromSide": "left", "toSide": "right" },
+    { "from": "cicd", "to": "be", "variant": "emphasis", "fromSide": "bottom", "toSide": "top", "route": "straight" },
+    { "from": "keepWarm", "to": "beJd", "variant": "dashed", "fromSide": "bottom", "toSide": "top" },
+    { "from": "kafka", "to": "kafkaUi", "variant": "dashed" }
+  ],
+  "cards": [
+    { "dot": "cyan", "title": "Prod Render (Free Tier)", "items": ["BE Docker Spring Boot 3.5 · FE & MFE-DA Static → https://yadinstore-backend.onrender.com/api/v1", "BE-KD /kafka-dashboard.html + BE-JD /jenkins-dashboard.html (ring 200) — free tier sleep 15m → wake ~50s"] },
+    { "dot": "emerald", "title": "Datos & Mensajería", "items": ["Atlas M0 + Aiven Kafka 28255 SASL_SSL SCRAM-256 — Local KRaft :9092 + UI :8090 5 topics ×3"] },
+    { "dot": "amber", "title": "Observabilidad + CI/CD", "items": ["Prometheus :9090 → Grafana 10.4.3 → ES :9200 → Kibana :5601 · Live ring 200 + agent 7 containers POST 2s", "Actions (Maven/Nx) + GHCR + Jenkins 8081 DinD · keep-warm 15m L-V 352h 46.9% $0 · cron-job.org L-V"] }
+  ]
+}
