@@ -144,7 +144,16 @@
         </div>
     </div>
 
-    <footer>GitHub Actions + Jenkins pipeline · GitHub Pages (estático) + Render <code>yadinstore-jenkins-obs-live</code> en vivo · 100% free tier · CORS <code>ypmanrique2.github.io</code> + backend live · rate-limit 30/min por bucket (metrics/logs/health) · poll metrics 5s logs 10s health 10s · BE-KD kafka-dashboard.html style</footer>
+    <div class="card" style="margin-top:1rem" id="topologia-3d-card">
+        <h2>Topología 3D — YadinStore (Prod + Local + Observabilidad) <span class="badge ok" style="margin-left:.4rem;">BE-JD iframe porcelain</span> <a href="/yadinstore-topology-3d.html" target="_blank" rel="noopener" style="font-size:.70rem; color:#60a5fa; margin-left:.5rem;">abrir fullscreen ↗</a></h2>
+        <div style="font-size:.72rem; color:#6b7a90; margin-bottom:.6rem;">Iframe <code>/yadinstore-topology-3d.html?embed=1</code> · 1378×620 trace · 3 views (request-path / observabilidad / cicd-keepalive) · <code>?embed=1</code> oculta toolbar · <span style="color:#22c55e;">live postMessage preparado: /api/jenkins/live 2s + /api/v1/kafka/activity → <code>type:'yadinstore-live'</code> anima aristas s cycles signal-flow motion-forward (futuro Kubernetes)</span> · same-origin (no CSP BE-KD) · <code>BE-JD Tab iframe (no BE-KD por CSP)</code></div>
+        <div style="border:1px solid #222c3d; border-radius:10px; overflow:hidden; background:#020617;">
+            <iframe id="topoFrame" src="/yadinstore-topology-3d.html?embed=1" loading="lazy" title="YadinStore Topología 3D" style="width:100%; height:620px; border:0; display:block; background:#020617;" allow="fullscreen"></iframe>
+        </div>
+        <div style="margin-top:.45rem; font-size:.66rem; color:#4b5a70;">Fuente: <code>yadinStore-Spec/yadinstore-topology-3d.html</code> (744KB archify 2.16, porcelain copy → BE-JD) + <code>yadinstore-topology-3d-candidate.json</code> · vivo tras Kubernetes con s cycles + signal-flow motion-forward · ver <code>yadinStore-Spec/avance_03-09-2026.md</code> · exploracion recomienda BE-JD Tab iframe (no BE-KD por CSP)</div>
+    </div>
+
+    <footer>GitHub Actions + Jenkins pipeline · GitHub Pages (estático) + Render <code>yadinstore-jenkins-obs-live</code> en vivo · 100% free tier · CORS <code>ypmanrique2.github.io</code> + backend live · rate-limit 30/min por bucket (metrics/logs/health) · poll metrics 5s logs 10s health 10s · BE-KD kafka-dashboard.html style · <span style="color:#22c55e;">Topología 3D BE-JD iframe 620px + postMessage live</span></footer>
 
     <script>
         const $ = (id) => document.getElementById(id);
@@ -430,6 +439,58 @@
                 if (healthRaw) healthRaw.textContent = 'Health error: ' + esc(e.message);
             }
         }
+        // === Topología 3D live postMessage — BE-JD iframe porcelain, futuro Kubernetes s cycles signal-flow motion-forward ===
+        let topoFrameEl = null;
+        let lastLiveCache = null;
+        let kafkaLiveCache = { topics: [], note: 'porcelain dummy — backend /api/v1/kafka/activity via proxy or direct', ts: null };
+        let obsLiveCache = null;
+        function getTopoFrame(){ if(!topoFrameEl) topoFrameEl = $('topoFrame'); return topoFrameEl; }
+        function pushLiveToTopology(){
+            const frame = getTopoFrame();
+            if (!frame || !frame.contentWindow) return;
+            if (!lastLiveCache) return;
+            const jenkins = lastLiveCache.jenkins || { queue:0, executors:{busy:0,idle:0}, jobs:[] };
+            const obs = lastLiveCache.obs || obsLiveCache || { outboxPending:0, kafkaPublishErrors:0 };
+            const payload = { type:'yadinstore-live', jenkins, kafka: kafkaLiveCache, obs, containers: lastLiveCache.containers || [], serverTime: lastLiveCache.serverTime || new Date().toISOString(), source:'be-jd-jenkins-dashboard', version:1 };
+            try { frame.contentWindow.postMessage(payload, '*'); } catch(e) {}
+        }
+        // wrap render to cache lastLive + push (mantiene AGENT ONLINE 7 containers intacto)
+        const _origRender = render;
+        render = function(data){
+            lastLiveCache = data;
+            obsLiveCache = data.obs || null;
+            _origRender(data);
+            pushLiveToTopology();
+        };
+        async function fetchKafkaActivity(){
+            try{
+                // backend proxy o directo — si CORS backend lo permite, fetch directo; si no, dummy ok
+                const r = await fetch(BACKEND + '/api/v1/kafka/activity', { headers:{Accept:'application/json'} });
+                if(r.ok){
+                    const j = await r.json();
+                    kafkaLiveCache = j.data || j;
+                    kafkaLiveCache._ts = new Date().toISOString();
+                } else {
+                    kafkaLiveCache = { ...kafkaLiveCache, _status:r.status, _ts:new Date().toISOString() };
+                }
+            }catch(e){
+                kafkaLiveCache = { ...kafkaLiveCache, _error:String(e.message||e), _ts:new Date().toISOString() };
+            }
+            pushLiveToTopology();
+        }
+        setInterval(fetchKafkaActivity, 2000);
+        fetchKafkaActivity();
+        window.addEventListener('load', ()=>{
+            const f = getTopoFrame();
+            if(f) f.addEventListener('load', ()=>{
+                setTimeout(pushLiveToTopology, 400);
+                setTimeout(fetchKafkaActivity, 600);
+            });
+        });
+        window.addEventListener('message', (ev)=>{
+            if(ev.data && ev.data.type === 'yadinstore-topology-ready'){ pushLiveToTopology(); }
+        });
+
         setInterval(poll, 2000);
         setInterval(fetchMetrics, 5000);
         setInterval(fetchLogs, 10000);

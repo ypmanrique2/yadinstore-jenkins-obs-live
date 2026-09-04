@@ -261,6 +261,40 @@ const server = http.createServer((req, res) => {
     });
   }
 
+  // GET /yadinstore-topology-3d.html (+ /topology alias) — porcelain copy from yadinStore-Spec, CSP compat iframe, same-origin
+  if (req.method === 'GET' && (url.pathname === '/yadinstore-topology-3d.html' || url.pathname === '/topology')) {
+    const file = path.join(__dirname, 'yadinstore-topology-3d.html');
+    return fs.readFile(file, (err, data) => {
+      if (err) { res.writeHead(500, { 'Content-Type': 'text/plain; charset=utf-8' }); res.end('yadinstore-topology-3d.html no encontrado'); return; }
+      // CSP: allow archify inline scripts/styles + Google Fonts (archify uses JetBrains Mono), same-origin iframe embedding
+      res.writeHead(200, {
+        'Content-Type': 'text/html; charset=utf-8',
+        'Content-Security-Policy': "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com data:; img-src 'self' data: https:; connect-src 'self' https://yadinstore-jenkins-obs-live.onrender.com https://yadinstore-backend.onrender.com https://ypmanrique2.github.io http://localhost:* http://127.0.0.1:*; frame-ancestors 'self' https://yadinstore-jenkins-obs-live.onrender.com https://ypmanrique2.github.io http://localhost:* http://127.0.0.1:*",
+        'X-Frame-Options': 'ALLOWALL',
+        'Cache-Control': 'public, max-age=300'
+      });
+      res.end(data);
+    });
+  }
+
+  // GET /yadinstore-topology-3d-candidate.json — raw candidate source for live signal-flow (optional, for future Kubernetes live)
+  if (req.method === 'GET' && (url.pathname === '/yadinstore-topology-3d-candidate.json' || url.pathname === '/topology.json' || url.pathname === '/candidate.json')) {
+    const file = path.join(__dirname, 'yadinstore-topology-3d-candidate.json');
+    return fs.readFile(file, (err, data) => {
+      if (err) return json(res, 404, { error: 'candidate not found' });
+      res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': 'public, max-age=60' });
+      res.end(data);
+    });
+  }
+
+  // HEAD for topology + candidate (UptimeRobot / probes)
+  if (req.method === 'HEAD' && (url.pathname === '/yadinstore-topology-3d.html' || url.pathname === '/topology' || url.pathname === '/yadinstore-topology-3d-candidate.json' || url.pathname === '/topology.json')) {
+    const ct = url.pathname.endsWith('.json') ? 'application/json; charset=utf-8' : 'text/html; charset=utf-8';
+    res.writeHead(200, { 'Content-Type': ct });
+    res.end();
+    return;
+  }
+
   json(res, 404, { error: 'not found' });
 });
 
