@@ -66,6 +66,15 @@
     <h1>🔧 Jenkins en vivo <span>— YadinStore CI/CD Live</span></h1>
     <div class="sub">Agente local → <code>docker events yadin-jenkins</code> + <code>Jenkins :8081/api/json</code> + metrics → Render free tier · Poll jenkins 2s · metrics 5s · logs 10s · health 10s · 4 streams: jenkins / docker / metrics / health → Observability BE-KD live</div>
 
+    <div class="card" style="margin-top:.8rem" id="topologia-3d-card">
+        <h2>Topología 3D — YadinStore (Prod + Local + Observabilidad) <span class="badge ok" style="margin-left:.4rem;">BE-JD iframe porcelain</span> <a href="/yadinstore-topology-3d.html" target="_blank" rel="noopener" style="font-size:.70rem; color:#60a5fa; margin-left:.5rem;">abrir fullscreen ↗</a></h2>
+        <div style="font-size:.72rem; color:#6b7a90; margin-bottom:.6rem;">Iframe <code>/yadinstore-topology-3d.html?embed=1</code> · 1378×620 trace · 3 views (request-path / observabilidad / cicd-keepalive) · <code>?embed=1</code> oculta toolbar · <span style="color:#22c55e;">live postMessage preparado: /api/jenkins/live 2s + /api/v1/kafka/activity → <code>type:'yadinstore-live'</code> anima aristas s cycles signal-flow motion-forward (futuro Kubernetes)</span> · same-origin (no CSP BE-KD) · <code>BE-JD Tab iframe (no BE-KD por CSP)</code></div>
+        <div style="border:1px solid #222c3d; border-radius:10px; overflow:hidden; background:#020617;">
+            <iframe id="topoFrame" src="/yadinstore-topology-3d.html?embed=1" loading="lazy" title="YadinStore Topología 3D" style="width:100%; height:620px; border:0; display:block; background:#020617;" allow="fullscreen"></iframe>
+        </div>
+        <div style="margin-top:.45rem; font-size:.66rem; color:#4b5a70;">Fuente: <code>yadinStore-Spec/yadinstore-topology-3d.html</code> (744KB archify 2.16, porcelain copy → BE-JD) + <code>yadinstore-topology-3d-candidate.json</code> · vivo tras Kubernetes con s cycles + signal-flow motion-forward · ver <code>yadinStore-Spec/avance_03-09-2026.md</code> · exploracion recomienda BE-JD Tab iframe (no BE-KD por CSP)</div>
+    </div>
+
     <div class="agent" id="agent">
         <span class="dot off" id="dot"></span>
         <span id="agentText">Esperando al agente…</span>
@@ -73,6 +82,10 @@
         <span class="badge" id="containerCount">0 contenedores</span>
         <span class="badge" id="queueBadge">queue 0</span>
         <span class="badge" id="executorBadge">executors 0/0</span>
+    </div>
+    <div id="ultimoDatoWrap" style="margin:.5rem 0 .8rem; display:flex; gap:.5rem; align-items:center; flex-wrap:wrap;">
+        <span id="ultimoDato" class="badge warn" style="font-size:.78rem; padding:.2rem .7rem;">Último dato: hace — s</span>
+        <span id="ultimoDatoHint" style="font-size:.72rem; color:#6b7a90;"></span>
     </div>
 
     <div class="kpis" id="kpis">
@@ -142,15 +155,6 @@
                 <tbody id="logsBody"><tr><td colspan="4" class="empty">Cargando logs…</td></tr></tbody>
             </table>
         </div>
-    </div>
-
-    <div class="card" style="margin-top:1rem" id="topologia-3d-card">
-        <h2>Topología 3D — YadinStore (Prod + Local + Observabilidad) <span class="badge ok" style="margin-left:.4rem;">BE-JD iframe porcelain</span> <a href="/yadinstore-topology-3d.html" target="_blank" rel="noopener" style="font-size:.70rem; color:#60a5fa; margin-left:.5rem;">abrir fullscreen ↗</a></h2>
-        <div style="font-size:.72rem; color:#6b7a90; margin-bottom:.6rem;">Iframe <code>/yadinstore-topology-3d.html?embed=1</code> · 1378×620 trace · 3 views (request-path / observabilidad / cicd-keepalive) · <code>?embed=1</code> oculta toolbar · <span style="color:#22c55e;">live postMessage preparado: /api/jenkins/live 2s + /api/v1/kafka/activity → <code>type:'yadinstore-live'</code> anima aristas s cycles signal-flow motion-forward (futuro Kubernetes)</span> · same-origin (no CSP BE-KD) · <code>BE-JD Tab iframe (no BE-KD por CSP)</code></div>
-        <div style="border:1px solid #222c3d; border-radius:10px; overflow:hidden; background:#020617;">
-            <iframe id="topoFrame" src="/yadinstore-topology-3d.html?embed=1" loading="lazy" title="YadinStore Topología 3D" style="width:100%; height:620px; border:0; display:block; background:#020617;" allow="fullscreen"></iframe>
-        </div>
-        <div style="margin-top:.45rem; font-size:.66rem; color:#4b5a70;">Fuente: <code>yadinStore-Spec/yadinstore-topology-3d.html</code> (744KB archify 2.16, porcelain copy → BE-JD) + <code>yadinstore-topology-3d-candidate.json</code> · vivo tras Kubernetes con s cycles + signal-flow motion-forward · ver <code>yadinStore-Spec/avance_03-09-2026.md</code> · exploracion recomienda BE-JD Tab iframe (no BE-KD por CSP)</div>
     </div>
 
     <footer>GitHub Actions + Jenkins pipeline · GitHub Pages (estático) + Render <code>yadinstore-jenkins-obs-live</code> en vivo · 100% free tier · CORS <code>ypmanrique2.github.io</code> + backend live · rate-limit 30/min por bucket (metrics/logs/health) · poll metrics 5s logs 10s health 10s · BE-KD kafka-dashboard.html style · <span style="color:#22c55e;">Topología 3D BE-JD iframe 620px + postMessage live</span></footer>
@@ -439,10 +443,35 @@
                 if (healthRaw) healthRaw.textContent = 'Health error: ' + esc(e.message);
             }
         }
-        // === Topología 3D live postMessage — BE-JD iframe porcelain, futuro Kubernetes s cycles signal-flow motion-forward ===
+        // === Cartelito "Último dato: hace X s" — 3 bandas verde <15s, ámbar <60s, rojo OFFLINE + hint (solo textContent/esc) ===
+        let lastSeenMs = 0;
+        function updateCartelito(){
+            const el = $('ultimoDato');
+            const hintEl = $('ultimoDatoHint');
+            if(!el) return;
+            if(!lastSeenMs){
+                el.textContent = 'Último dato: hace — s';
+                el.className = 'badge err';
+                if(hintEl) hintEl.textContent = 'corre .\\jenkins-obs-agent.ps1 y dejalo abierto';
+                return;
+            }
+            const deltaMs = Date.now() - lastSeenMs;
+            const secs = Math.max(0, Math.floor(deltaMs/1000));
+            el.textContent = 'Último dato: hace ' + secs + ' s';
+            if(secs < 15){
+                el.className = 'badge ok';
+                if(hintEl) hintEl.textContent = 'ONLINE';
+            } else if(secs < 60){
+                el.className = 'badge warn';
+                if(hintEl) hintEl.textContent = secs + 's sin datos — chequea agente';
+            } else {
+                el.className = 'badge err';
+                if(hintEl) hintEl.textContent = 'OFFLINE — corre .\\jenkins-obs-agent.ps1 y dejalo abierto';
+            }
+        }
+        // === Topología 3D live postMessage — BE-JD iframe porcelain, payload REAL sin dummy (jenkins queue/executors/jobs, obs outboxPending/kafkaPublishErrors, containers) ===
         let topoFrameEl = null;
         let lastLiveCache = null;
-        let kafkaLiveCache = { topics: [], note: 'porcelain dummy — backend /api/v1/kafka/activity via proxy or direct', ts: null };
         let obsLiveCache = null;
         function getTopoFrame(){ if(!topoFrameEl) topoFrameEl = $('topoFrame'); return topoFrameEl; }
         function pushLiveToTopology(){
@@ -451,41 +480,27 @@
             if (!lastLiveCache) return;
             const jenkins = lastLiveCache.jenkins || { queue:0, executors:{busy:0,idle:0}, jobs:[] };
             const obs = lastLiveCache.obs || obsLiveCache || { outboxPending:0, kafkaPublishErrors:0 };
-            const payload = { type:'yadinstore-live', jenkins, kafka: kafkaLiveCache, obs, containers: lastLiveCache.containers || [], serverTime: lastLiveCache.serverTime || new Date().toISOString(), source:'be-jd-jenkins-dashboard', version:1 };
+            const containers = Array.isArray(lastLiveCache.containers) ? lastLiveCache.containers : [];
+            const payload = { type:'yadinstore-live', jenkins: { queue: jenkins.queue ?? 0, executors: jenkins.executors || {busy:0,idle:0}, jobs: Array.isArray(jenkins.jobs) ? jenkins.jobs : [] }, obs: { outboxPending: Number(obs.outboxPending ?? obs.outbox_pending ?? 0), kafkaPublishErrors: Number(obs.kafkaPublishErrors ?? 0) }, containers: containers, containerCount: containers.length, serverTime: lastLiveCache.serverTime || new Date().toISOString(), source:'be-jd-jenkins-dashboard', version:1 };
             try { frame.contentWindow.postMessage(payload, '*'); } catch(e) {}
         }
-        // wrap render to cache lastLive + push (mantiene AGENT ONLINE 7 containers intacto)
+        // wrap render to cache lastLive + push + cartelito (mantiene AGENT ONLINE intacto)
         const _origRender = render;
         render = function(data){
             lastLiveCache = data;
             obsLiveCache = data.obs || null;
+            lastSeenMs = data.lastSeen ? new Date(data.lastSeen).getTime() : 0;
             _origRender(data);
+            updateCartelito();
             pushLiveToTopology();
         };
-        async function fetchKafkaActivity(){
-            try{
-                // backend proxy o directo — si CORS backend lo permite, fetch directo; si no, dummy ok
-                const r = await fetch(BACKEND + '/api/v1/kafka/activity', { headers:{Accept:'application/json'} });
-                if(r.ok){
-                    const j = await r.json();
-                    kafkaLiveCache = j.data || j;
-                    kafkaLiveCache._ts = new Date().toISOString();
-                } else {
-                    kafkaLiveCache = { ...kafkaLiveCache, _status:r.status, _ts:new Date().toISOString() };
-                }
-            }catch(e){
-                kafkaLiveCache = { ...kafkaLiveCache, _error:String(e.message||e), _ts:new Date().toISOString() };
-            }
-            pushLiveToTopology();
-        }
-        setInterval(fetchKafkaActivity, 2000);
-        fetchKafkaActivity();
+        setInterval(updateCartelito, 1000);
         window.addEventListener('load', ()=>{
             const f = getTopoFrame();
             if(f) f.addEventListener('load', ()=>{
                 setTimeout(pushLiveToTopology, 400);
-                setTimeout(fetchKafkaActivity, 600);
             });
+            setTimeout(updateCartelito, 200);
         });
         window.addEventListener('message', (ev)=>{
             if(ev.data && ev.data.type === 'yadinstore-topology-ready'){ pushLiveToTopology(); }
