@@ -47,12 +47,13 @@ const ALLOWED_ORIGINS = [
 ];
 const ALLOWED_ORIGIN = ALLOWED_ORIGINS[0]; // keep for log
 
-// --- Estado en memoria (ring + 3 streams) ---
+// --- Estado en memoria (ring + 4 streams: jenkins/docker/metrics/k8s) ---
 const state = {
   events: [], // ring MAX_EVENTS: docker events + jenkins builds
   containers: [], // último snapshot docker ps
   jenkins: { queue: 0, executors: { busy: 0, idle: 0 }, jobs: [] }, // stream jenkins
   obs: { outboxPending: 0, kafkaPublishErrors: 0, serverTime: null }, // stream metrics dummy
+  k8s: { status: 'unknown', context: 'k3d-yadinstore', nodesReady: '—', podsRunning: '—', lastKubectlOk: false, ts: null }, // stream k8s/k3d (agente kubectl)
   lastSeen: null, // ISO del último POST del agente
 };
 
@@ -207,8 +208,21 @@ const server = http.createServer((req, res) => {
         if (body.obs.kafkaPublishErrors != null) state.obs.kafkaPublishErrors = Number(body.obs.kafkaPublishErrors) || 0;
       }
       if (body.outboxPending != null) state.obs.outboxPending = Number(body.outboxPending) || 0;
+      // K8s/k3d — allowlist estricta, solo agregados (sin PII), compatible hacia atrás (si no viene, mantiene unknown)
+      if (body.k8s && typeof body.k8s === 'object') {
+        const k = body.k8s;
+        const ctx = String(k.context || 'k3d-yadinstore').slice(0, 64);
+        const nodesReady = String(k.nodesReady || '—').slice(0, 16);
+        const podsRunning = String(k.podsRunning || '—').slice(0, 16);
+        const lastKubectlOk = Boolean(k.lastKubectlOk);
+        const status = String(k.status || (lastKubectlOk ? 'ok' : 'unknown')).slice(0, 20).toLowerCase();
+        state.k8s = { status: status === 'ok' || status === 'degraded' ? status : (lastKubectlOk ? 'ok' : 'unknown'), context: ctx, nodesReady, podsRunning, lastKubectlOk, ts: new Date().toISOString() };
+      } else if (body.k8s === null) {
+        // agente explícitamente resetea
+        state.k8s = { status: 'unknown', context: 'k3d-yadinstore', nodesReady: '—', podsRunning: '—', lastKubectlOk: false, ts: new Date().toISOString() };
+      }
       state.lastSeen = new Date().toISOString();
-      json(res, 200, { ok: true, jenkins: state.jenkins, containers: state.containers.length, obs: state.obs });
+      json(res, 200, { ok: true, jenkins: state.jenkins, containers: state.containers.length, obs: state.obs, k8s: state.k8s });
     });
   }
 
@@ -227,13 +241,14 @@ const server = http.createServer((req, res) => {
     });
   }
 
-  // GET /api/jenkins/live — poll dashboard (público, healthCheck)
+  // GET /api/jenkins/live — poll dashboard (público, healthCheck) — incluye k8s
   if (req.method === 'GET' && (url.pathname === '/api/jenkins/live' || url.pathname === '/api/docker/live')) {
     return json(res, 200, {
       events: state.events,
       containers: state.containers,
       jenkins: state.jenkins,
       obs: { ...state.obs, serverTime: new Date().toISOString() },
+      k8s: state.k8s,
       lastSeen: state.lastSeen,
       serverTime: new Date().toISOString(),
     });

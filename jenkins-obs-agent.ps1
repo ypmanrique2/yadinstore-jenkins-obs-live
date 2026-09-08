@@ -86,6 +86,40 @@ function GetSafeCount($maybeArray) {
     try { return @($maybeArray).Count } catch { return 0 }
 }
 
+function Get-K8sSnapshot {
+    $nowIso = (Get-Date).ToString('o')
+    $base = @{ status='unknown'; context='k3d-yadinstore'; nodesReady='-'; podsRunning='-'; lastKubectlOk=$false; ts=$nowIso }
+    try {
+        if (-not (Get-Command kubectl -ErrorAction SilentlyContinue)) { return $base }
+        $ctx = 'k3d-yadinstore'
+        $ns = 'yadinstore-dev'
+        $nodesRaw = kubectl get nodes --context $ctx --no-headers 2>$null
+        if ($LASTEXITCODE -ne 0 -or -not $nodesRaw) { return $base }
+        $lines = @($nodesRaw)
+        $total = $lines.Count
+        $ready = 0
+        foreach ($line in $lines) { if ($line -match '\sReady\s') { $ready++ } }
+        $nodesReady = "$ready/$total"
+        $podsRaw = kubectl get pods -n $ns --context $ctx --no-headers 2>$null
+        $podsRunning = '-'
+        $podsOk = $false
+        if ($LASTEXITCODE -eq 0 -and $podsRaw) {
+            $pLines = @($podsRaw)
+            $pTotal = $pLines.Count
+            $strict = 0
+            foreach ($pl in $pLines) { if ($pl -match '\s1/1\s+Running') { $strict++ } }
+            if ($strict -gt 0) { $pReady = $strict; $pTotal = $pLines.Count }
+            else { $pReady = 0; foreach ($pl in $pLines) { if ($pl -match '\sRunning\s') { $pReady++ } } }
+            $podsRunning = "$pReady/$pTotal"
+            $podsOk = ($pReady -eq $pTotal -and $pTotal -gt 0)
+        } elseif ($LASTEXITCODE -eq 0) { $podsRunning = '0/0' }
+        $ok = ($ready -eq $total -and $total -gt 0)
+        $status = if ($ok -and $podsOk) { 'ok' } elseif ($ok -or $podsOk) { 'degraded' } else { 'unknown' }
+        return @{ status=$status; context=$ctx; nodesReady=$nodesReady; podsRunning=$podsRunning; lastKubectlOk=$true; ts=$nowIso }
+    } catch { return $base }
+}
+
+
 # Resolver Jenkins auth desde params o env (JENKINS_TOKEN / JENKINS_API_TOKEN / JENKINS_USER)
 if (-not $JenkinsToken) {
     if ($env:JENKINS_TOKEN) { $JenkinsToken = $env:JENKINS_TOKEN }
@@ -246,16 +280,19 @@ try {
             }
             # Dummy si no hay métrica real (estructura ok para fase1)
             $obsSnapshot = @{ outboxPending = $outboxPending; kafkaPublishErrors = 0 }
+            # K8s/k3d - dentro de try/catch, nunca tumba agente
+            $k8sSnapshot = $null
+            try { $k8sSnapshot = Get-K8sSnapshot } catch { $k8sSnapshot = @{ status='unknown'; context='k3d-yadinstore'; nodesReady='-'; podsRunning='-'; lastKubectlOk=$false; ts=(Get-Date).ToString('o') } }
 
             # Docker ps snapshot periódico
             if ($hasDocker) {
                 try {
                     $containers = @(docker ps --format json 2>$null | ForEach-Object { $_ | ConvertFrom-Json })
                     if ($containers -or $true) {
-                        $payload = @{ jenkins = $jenkinsSnapshot; containers = $containers; obs = $obsSnapshot } | ConvertTo-Json -Depth 6 -Compress
+                        $payload = @{ jenkins = $jenkinsSnapshot; containers = $containers; obs = $obsSnapshot; k8s = $k8sSnapshot } | ConvertTo-Json -Depth 6 -Compress
                         try {
                             Invoke-RestMethod -Method Post -Uri "$Endpoint/api/jenkins/snapshot" -Headers $headers -Body $payload -TimeoutSec 10 | Out-Null
-                            Write-Host "  [snapshot] queue:$($jenkinsSnapshot.queue) busy:$($jenkinsSnapshot.executors.busy) idle:$($jenkinsSnapshot.executors.idle) containers:$($containers.Count) outbox:$outboxPending" -ForegroundColor DarkGray
+                            Write-Host "  [snapshot] queue:$($jenkinsSnapshot.queue) busy:$($jenkinsSnapshot.executors.busy) idle:$($jenkinsSnapshot.executors.idle) containers:$($containers.Count) outbox:$outboxPending k8s:$($k8sSnapshot.nodesReady)/$($k8sSnapshot.podsRunning) ctx:$($k8sSnapshot.context)" -ForegroundColor DarkGray
                         } catch {
                             Write-Host "  [snapshot] error: $($_.Exception.Message)" -ForegroundColor Yellow
                         }
@@ -265,10 +302,10 @@ try {
                 }
             } else {
                 # Sin docker, igual POST snapshot jenkins+obs
-                $payload = @{ jenkins = $jenkinsSnapshot; obs = $obsSnapshot } | ConvertTo-Json -Depth 6 -Compress
+                $payload = @{ jenkins = $jenkinsSnapshot; obs = $obsSnapshot; k8s = $k8sSnapshot } | ConvertTo-Json -Depth 6 -Compress
                 try {
                     Invoke-RestMethod -Method Post -Uri "$Endpoint/api/jenkins/snapshot" -Headers $headers -Body $payload -TimeoutSec 10 | Out-Null
-                    Write-Host "  [snapshot] queue:$($jenkinsSnapshot.queue) busy:$($jenkinsSnapshot.executors.busy) outbox:$outboxPending (sin docker)" -ForegroundColor DarkGray
+                    Write-Host "  [snapshot] queue:$($jenkinsSnapshot.queue) busy:$($jenkinsSnapshot.executors.busy) outbox:$outboxPending k8s:$($k8sSnapshot.nodesReady)/$($k8sSnapshot.podsRunning) (sin docker) ctx:$($k8sSnapshot.context)" -ForegroundColor DarkGray
                 } catch {
                     Write-Host "  [snapshot] error: $($_.Exception.Message)" -ForegroundColor Yellow
                 }

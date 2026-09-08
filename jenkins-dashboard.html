@@ -84,8 +84,21 @@
         <span class="badge" id="executorBadge">executors 0/0</span>
     </div>
     <div id="ultimoDatoWrap" style="margin:.5rem 0 .8rem; display:flex; gap:.5rem; align-items:center; flex-wrap:wrap;">
-        <span id="ultimoDato" class="badge warn" style="font-size:.78rem; padding:.2rem .7rem;">Último dato: hace — s</span>
-        <span id="ultimoDatoHint" style="font-size:.72rem; color:#6b7a90;"></span>
+        <span id="ultimoDato" class="badge err" style="font-size:.78rem; padding:.2rem .7rem;">Último dato: hace — s</span>
+        <span id="ultimoDatoHint" style="font-size:.72rem; color:#6b7a90;">corre .\jenkins-obs-agent.ps1 y dejalo abierto</span>
+    </div>
+
+    <div id="k8sCard" class="card" style="margin:0 0 .8rem; padding:.6rem .8rem; border-left:3px solid #334155;">
+        <div style="display:flex; gap:.6rem; align-items:center; flex-wrap:wrap; justify-content:space-between;">
+            <div style="display:flex; gap:.5rem; align-items:center; flex-wrap:wrap;">
+                <span style="font-size:.78rem; font-weight:700; color:#93c5fd;">⎈ K8s/k3d local</span>
+                <span id="k8sBadge" class="badge" style="font-size:.72rem;">OFFLINE</span>
+                <span id="k8sNodes" class="badge" style="font-size:.72rem;">nodes —</span>
+                <span id="k8sPods" class="badge" style="font-size:.72rem;">pods —</span>
+            </div>
+            <span id="k8sHint" style="font-size:.70rem; color:#6b7a90;">k3d cluster list + kubectl get nodes --context k3d-yadinstore</span>
+        </div>
+        <div style="margin-top:.35rem; font-size:.68rem; color:#4b5a70;">context <code>k3d-yadinstore</code> · ns <code>yadinstore-dev</code> · verde cuando <code>nodes 2/2</code> + <code>pods 2/2</code> + fresco &lt;60s · fuente: <code>jenkins-obs-agent.ps1</code> → <code>POST /api/jenkins/snapshot {k8s}</code></div>
     </div>
 
     <div class="kpis" id="kpis">
@@ -177,14 +190,18 @@
             if (s.includes('unstable')||s.includes('abort')) return 'result-unstable';
             return 'result-unknown';
         }
+        // cache-buster v=hash → evita Render cache vieja; Ctrl+F5 fuerza reload si deploy lag
+        const DASHBOARD_VERSION = '2026-09-08-fix-cartelito-k8s-live-v1';
         async function poll() {
             try {
-                const r = await fetch('/api/jenkins/live');
+                const r = await fetch('/api/jenkins/live?v=' + encodeURIComponent(DASHBOARD_VERSION), { cache: 'no-store' });
                 const data = await r.json();
                 render(data);
             } catch (e) {
                 $('dot').className = 'dot off';
                 $('agentText').textContent = 'Servidor no responde: ' + e.message;
+                // cartelito y k8s deben seguir tickeando aunque poll falle
+                try { updateCartelito(); renderK8s(null); } catch(_){}
             }
         }
         function render(data) {
@@ -443,33 +460,100 @@
                 if (healthRaw) healthRaw.textContent = 'Health error: ' + esc(e.message);
             }
         }
-        // === Cartelito "Último dato: hace X s" — 3 bandas verde <15s, ámbar <60s, rojo OFFLINE + hint (solo textContent/esc) ===
+        // === Cartelito "Último dato: hace X s" — 3 bandas verde <15s, ámbar <60s, rojo OFFLINE + hint (solo textContent/esc) — SIEMPRE visible, tick cada 1s ===
         let lastSeenMs = 0;
         function updateCartelito(){
-            const el = $('ultimoDato');
-            const hintEl = $('ultimoDatoHint');
-            if(!el) return;
-            if(!lastSeenMs){
-                el.textContent = 'Último dato: hace — s';
-                el.className = 'badge err';
-                if(hintEl) hintEl.textContent = 'corre .\\jenkins-obs-agent.ps1 y dejalo abierto';
-                return;
-            }
-            const deltaMs = Date.now() - lastSeenMs;
-            const secs = Math.max(0, Math.floor(deltaMs/1000));
-            el.textContent = 'Último dato: hace ' + secs + ' s';
-            if(secs < 15){
-                el.className = 'badge ok';
-                if(hintEl) hintEl.textContent = 'ONLINE';
-            } else if(secs < 60){
-                el.className = 'badge warn';
-                if(hintEl) hintEl.textContent = secs + 's sin datos — chequea agente';
-            } else {
-                el.className = 'badge err';
-                if(hintEl) hintEl.textContent = 'OFFLINE — corre .\\jenkins-obs-agent.ps1 y dejalo abierto';
+            try {
+                const el = $('ultimoDato');
+                const hintEl = $('ultimoDatoHint');
+                if(!el) return;
+                if(!lastSeenMs){
+                    el.textContent = 'Último dato: hace — s';
+                    el.className = 'badge err';
+                    if(hintEl) hintEl.textContent = 'corre .\\jenkins-obs-agent.ps1 y dejalo abierto';
+                    return;
+                }
+                const deltaMs = Date.now() - lastSeenMs;
+                const secs = Math.max(0, Math.floor(deltaMs/1000));
+                el.textContent = 'Último dato: hace ' + secs + ' s';
+                if(secs < 15){
+                    el.className = 'badge ok';
+                    if(hintEl) hintEl.textContent = 'ONLINE';
+                } else if(secs < 60){
+                    el.className = 'badge warn';
+                    if(hintEl) hintEl.textContent = secs + 's sin datos — chequea agente';
+                } else {
+                    el.className = 'badge err';
+                    if(hintEl) hintEl.textContent = 'OFFLINE — corre .\\jenkins-obs-agent.ps1 y dejalo abierto';
+                }
+            } catch(e) {
+                // nunca tumbar tick
             }
         }
-        // === Topología 3D live postMessage — BE-JD iframe porcelain, payload REAL sin dummy (jenkins queue/executors/jobs, obs outboxPending/kafkaPublishErrors, containers) ===
+        // === K8s/k3d local card — verde cuando nodes 2/2 + pods 2/2 + fresco <60s ===
+        let lastK8sCache = null;
+        function renderK8s(k8s){
+            try {
+                const badge = $('k8sBadge');
+                const nodesEl = $('k8sNodes');
+                const podsEl = $('k8sPods');
+                const hintEl = $('k8sHint');
+                const card = $('k8sCard');
+                if(!badge || !nodesEl || !podsEl) return;
+                if(!k8s || k8s.status === 'unknown' || !k8s.lastKubectlOk){
+                    if(k8s && k8s.status === 'unknown'){
+                        badge.textContent = 'UNKNOWN';
+                        badge.className = 'badge warn';
+                        nodesEl.textContent = 'nodes ' + esc(k8s.nodesReady || '—');
+                        podsEl.textContent = 'pods ' + esc(k8s.podsRunning || '—');
+                        if(hintEl) hintEl.textContent = 'kubectl no disponible — k3d cluster list + kubectl get nodes --context k3d-yadinstore';
+                    } else {
+                        badge.textContent = 'OFFLINE';
+                        badge.className = 'badge err';
+                        // si hay dato previo, mantener último dato visible
+                        if(lastK8sCache && lastK8sCache.nodesReady){
+                            nodesEl.textContent = 'nodes ' + esc(lastK8sCache.nodesReady);
+                            podsEl.textContent = 'pods ' + esc(lastK8sCache.podsRunning || '—');
+                            if(hintEl) hintEl.textContent = 'último dato ' + (lastK8sCache.ts ? new Date(lastK8sCache.ts).toLocaleTimeString() : '—') + ' · k3d cluster list + kubectl get nodes';
+                        } else {
+                            nodesEl.textContent = 'nodes —';
+                            podsEl.textContent = 'pods —';
+                            if(hintEl) hintEl.textContent = 'sin agente — corre .\\jenkins-obs-agent.ps1 (requiere kubectl + k3d-yadinstore)';
+                        }
+                    }
+                    if(card) card.style.borderLeftColor = '#ef4444';
+                    return;
+                }
+                lastK8sCache = k8s;
+                const nodesReady = String(k8s.nodesReady || '—');
+                const podsRunning = String(k8s.podsRunning || '—');
+                const ts = k8s.ts ? new Date(k8s.ts).getTime() : (lastSeenMs || Date.now());
+                const ageSec = Math.max(0, Math.floor((Date.now() - ts)/1000));
+                const fresh = ageSec < 60;
+                const nodesOk = nodesReady === '2/2';
+                const podsOk = podsRunning === '2/2';
+                const allOk = nodesOk && podsOk && fresh && k8s.lastKubectlOk;
+                nodesEl.textContent = 'nodes ' + nodesReady;
+                podsEl.textContent = 'pods ' + podsRunning;
+                if(allOk){
+                    badge.textContent = 'LIVE';
+                    badge.className = 'badge ok';
+                    if(card) card.style.borderLeftColor = '#22c55e';
+                    if(hintEl) hintEl.textContent = 'hace ' + ageSec + 's · ' + esc(k8s.context || 'k3d-yadinstore') + ' ✓';
+                } else if(fresh && (nodesOk || podsOk)){
+                    badge.textContent = 'WARN';
+                    badge.className = 'badge warn';
+                    if(card) card.style.borderLeftColor = '#eab308';
+                    if(hintEl) hintEl.textContent = 'hace ' + ageSec + 's · nodes ' + nodesReady + ' pods ' + podsRunning + ' — revisar';
+                } else {
+                    badge.textContent = 'OFFLINE';
+                    badge.className = 'badge err';
+                    if(card) card.style.borderLeftColor = '#ef4444';
+                    if(hintEl) hintEl.textContent = 'hace ' + ageSec + 's · k3d cluster list + kubectl get nodes --context k3d-yadinstore';
+                }
+            } catch(e) {}
+        }
+        // === Topología 3D live postMessage — BE-JD iframe porcelain, payload REAL sin dummy (jenkins queue/executors/jobs, obs outboxPending/kafkaPublishErrors, containers, k8s) ===
         let topoFrameEl = null;
         let lastLiveCache = null;
         let obsLiveCache = null;
@@ -481,27 +565,36 @@
             const jenkins = lastLiveCache.jenkins || { queue:0, executors:{busy:0,idle:0}, jobs:[] };
             const obs = lastLiveCache.obs || obsLiveCache || { outboxPending:0, kafkaPublishErrors:0 };
             const containers = Array.isArray(lastLiveCache.containers) ? lastLiveCache.containers : [];
-            const payload = { type:'yadinstore-live', jenkins: { queue: jenkins.queue ?? 0, executors: jenkins.executors || {busy:0,idle:0}, jobs: Array.isArray(jenkins.jobs) ? jenkins.jobs : [] }, obs: { outboxPending: Number(obs.outboxPending ?? obs.outbox_pending ?? 0), kafkaPublishErrors: Number(obs.kafkaPublishErrors ?? 0) }, containers: containers, containerCount: containers.length, serverTime: lastLiveCache.serverTime || new Date().toISOString(), source:'be-jd-jenkins-dashboard', version:1 };
+            const k8s = lastLiveCache.k8s || lastK8sCache || null;
+            const payload = { type:'yadinstore-live', jenkins: { queue: jenkins.queue ?? 0, executors: jenkins.executors || {busy:0,idle:0}, jobs: Array.isArray(jenkins.jobs) ? jenkins.jobs : [] }, obs: { outboxPending: Number(obs.outboxPending ?? obs.outbox_pending ?? 0), kafkaPublishErrors: Number(obs.kafkaPublishErrors ?? 0) }, containers: containers, containerCount: containers.length, k8s: k8s, serverTime: lastLiveCache.serverTime || new Date().toISOString(), source:'be-jd-jenkins-dashboard', version:1 };
             try { frame.contentWindow.postMessage(payload, '*'); } catch(e) {}
         }
-        // wrap render to cache lastLive + push + cartelito (mantiene AGENT ONLINE intacto)
+        // wrap render to cache lastLive + push + cartelito + k8s (mantiene AGENT ONLINE intacto)
         const _origRender = render;
         render = function(data){
             lastLiveCache = data;
             obsLiveCache = data.obs || null;
             lastSeenMs = data.lastSeen ? new Date(data.lastSeen).getTime() : 0;
+            if(data.k8s) lastK8sCache = data.k8s;
             _origRender(data);
             updateCartelito();
+            renderK8s(data.k8s || lastK8sCache);
             pushLiveToTopology();
         };
         setInterval(updateCartelito, 1000);
+        setInterval(function(){ renderK8s(lastK8sCache); }, 1000);
         window.addEventListener('load', ()=>{
             const f = getTopoFrame();
             if(f) f.addEventListener('load', ()=>{
                 setTimeout(pushLiveToTopology, 400);
             });
-            setTimeout(updateCartelito, 200);
+            // cartelito debe tickear aunque poll tarde (Render cold start 40s)
+            updateCartelito();
+            renderK8s(lastK8sCache);
+            setTimeout(function(){ updateCartelito(); renderK8s(lastK8sCache); }, 200);
         });
+        // primer tick inmediato (visible aunque JS tarde)
+        try { updateCartelito(); renderK8s(null); } catch(_){}
         window.addEventListener('message', (ev)=>{
             if(ev.data && ev.data.type === 'yadinstore-topology-ready'){ pushLiveToTopology(); }
         });
