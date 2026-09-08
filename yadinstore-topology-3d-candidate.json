@@ -30,14 +30,19 @@
     { "id": "grafana", "type": "cloud", "label": "Grafana", "sublabel": "10.4.3 :3000", "pos": [1060, 280], "size": [138, 62], "tag": "Prometheus DS" },
     { "id": "elastic", "type": "database", "label": "Elasticsearch", "sublabel": ":9200 yadinstore-logs-*", "pos": [1060, 460], "size": [138, 62], "tag": "ILM 14d" },
     { "id": "kibana", "type": "cloud", "label": "Kibana", "sublabel": ":5601 Discover", "pos": [1226, 460], "size": [130, 62], "tag": "logs view" },
-    { "id": "mailhog", "type": "backend", "label": "MailHog", "sublabel": "smtp :1025 ui :8025", "pos": [40, 530], "size": [130, 62], "tag": "dev mail" }
+    { "id": "mailhog", "type": "backend", "label": "MailHog", "sublabel": "smtp :1025 ui :8025", "pos": [40, 530], "size": [130, 62], "tag": "dev mail" },
+    { "id": "ingressNginx", "type": "cloud", "label": "ingress-nginx", "sublabel": "k3d yadinstore.local", "pos": [1060, 100], "size": [138, 62], "tag": "ingress" },
+    { "id": "sealedSecrets", "type": "cloud", "label": "sealed-secrets", "sublabel": "kubeseal controller", "pos": [1226, 100], "size": [130, 62], "tag": "sealed" },
+    { "id": "k8sBackendPod", "type": "backend", "label": "yadinstore-backend", "sublabel": "k3d yadinstore-dev", "pos": [1060, 180], "size": [138, 62], "tag": "k3d pod" },
+    { "id": "k8sFrontendPod", "type": "frontend", "label": "yadinstore-frontend", "sublabel": "k3d yadinstore-dev", "pos": [1226, 180], "size": [130, 62], "tag": "k3d pod" }
   ],
   "boundaries": [
     { "kind": "region", "label": "Render Prod (Free Tier) — backend / frontend / admin / jenkins-obs-live", "wraps": ["fe", "mfeDa", "be", "beKd", "beJd"], "pad": 16 },
     { "kind": "region", "label": "Aiven Cloud — Kafka 4.2.1", "wraps": ["kafka", "kafkaUi"], "pad": 14 },
     { "kind": "region", "label": "MongoDB Atlas — M0", "wraps": ["mongo"], "pad": 14 },
     { "kind": "security-group", "label": "ci-cd-infra docker-compose localhost (12 servicios)", "wraps": ["jenkins", "prometheus", "grafana", "elastic", "kibana", "kafkaUi", "mailhog"], "pad": 8 },
-    { "kind": "region", "label": "GitHub Cloud — Actions + GHCR + keep-warm.yml", "wraps": ["cicd", "keepWarm"], "pad": 14 }
+    { "kind": "region", "label": "GitHub Cloud — Actions + GHCR + keep-warm.yml", "wraps": ["cicd", "keepWarm"], "pad": 14 },
+    { "kind": "region", "label": "k3d-yadinstore — 2 nodos (server+agent) + yadinstore-dev (2 pods) + ingress-nginx + sealed-secrets-controller", "wraps": ["ingressNginx", "sealedSecrets", "k8sBackendPod", "k8sFrontendPod"], "pad": 14 }
   ],
   "connections": [
     { "from": "users", "to": "fe", "variant": "emphasis" },
