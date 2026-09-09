@@ -1039,7 +1039,7 @@
                 if (!lastSeenMs) {
                     el.textContent = 'Último dato: hace — s';
                     applyCartelitoStyle(el, 'err');
-                    if (hintEl) { hintEl.textContent = 'corre .\\jenkins-obs-agent.ps1 y dejalo abierto'; hintEl.style.color = '#6b7a90'; }
+                    if (hintEl) { hintEl.textContent = '.\\jenkins-obs-agent.ps1'; hintEl.style.color = '#6b7a90'; }
                     return;
                 }
                 const deltaMs = Date.now() - lastSeenMs;
@@ -1053,7 +1053,7 @@
                     if (hintEl) { hintEl.textContent = secs + 's sin datos — chequea agente'; hintEl.style.color = '#eab308'; hintEl.style.fontWeight = '600'; }
                 } else {
                     applyCartelitoStyle(el, 'err');
-                    if (hintEl) { hintEl.textContent = 'OFFLINE — corre .\\jenkins-obs-agent.ps1 y dejalo abierto'; hintEl.style.color = '#ef4444'; hintEl.style.fontWeight = '600'; }
+                    if (hintEl) { hintEl.textContent = 'OFFLINE — .\\jenkins-obs-agent.ps1'; hintEl.style.color = '#ef4444'; hintEl.style.fontWeight = '600'; }
                 }
             } catch (e) {
                 // nunca tumbar tick
@@ -1087,7 +1087,7 @@
                         } else {
                             nodesEl.textContent = 'nodes —';
                             podsEl.textContent = 'pods —';
-                            if (hintEl) hintEl.textContent = 'sin agente — corre .\\jenkins-obs-agent.ps1 (requiere kubectl + k3d-yadinstore)';
+                            if (hintEl) hintEl.textContent = 'sin agente — .\\jenkins-obs-agent.ps1 (requiere kubectl + k3d-yadinstore)';
                         }
                     }
                     if (card) card.style.borderLeftColor = '#ef4444';
