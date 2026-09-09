@@ -57,9 +57,9 @@ const state = {
   lastSeen: null, // ISO del último POST del agente
 };
 
-const KAFKA_ACTIVITY_URL = process.env.KAFKA_ACTIVITY_URL ?? 'https://yadinstore-backend.onrender.com/api/v1/kafka/activity';
+const KAFKA_ACTIVITY_URL = (process.env.KAFKA_ACTIVITY_URL || '').trim() || 'https://yadinstore-backend.onrender.com/api/v1/kafka/activity';
 const KAFKA_RATE_LIMIT_MAX = 30; // GET /api/jd/kafka por minuto por IP (bucket separado)
-const KAFKA_TIMEOUT_MS = 5000;
+const KAFKA_TIMEOUT_MS = 20000; // Aumentado a 20s para cold start de Render free tier
 const rateMap = new Map(); // ip -> { count, resetAt }
 const rateMapKafka = new Map(); // bucket separado para GET /api/jd/kafka
 
@@ -328,6 +328,7 @@ const server = http.createServer((req, res) => {
   }
 
   // GET /api/jd/kafka — adapter hexagonal server-side fetch a BE (KAFKA_ACTIVITY_URL), siempre 200 idempotente
+  // Fix cold start Render free tier 30-60s: timeout 10s + retry 503/hibernate tras 2s, cache:no-store
   if (req.method === 'GET' && url.pathname === '/api/jd/kafka') {
     if (rateLimitedKafka(req, res)) return;
     let limit = parseInt(url.searchParams.get('limit') || '100', 10);
@@ -337,21 +338,13 @@ const server = http.createServer((req, res) => {
     if (!urlEnv) {
       return json(res, 200, { status: 'not-configured', cluster: { clusterId: '', brokers: [] }, topics: [], consumerGroups: [], lag: 0, serverTime: new Date().toISOString(), message: sanitizeCause('KAFKA_BOOTSTRAP_SERVERS no definido — el broker no está activado en este entorno') });
     }
-    const sig = typeof AbortSignal.timeout === 'function' ? AbortSignal.timeout(KAFKA_TIMEOUT_MS) : undefined;
-    let ctrl;
-    let tid;
-    if (!sig) { ctrl = new AbortController(); tid = setTimeout(() => ctrl.abort(), KAFKA_TIMEOUT_MS); }
-    fetch(urlEnv, { signal: sig || ctrl.signal, headers: { 'Accept': 'application/json' } }).then(async (up) => {
-      if (tid) clearTimeout(tid);
-      let payload;
-      try {
-        const j = await up.json();
-        if (j && j.data && typeof j.data === 'object') payload = j.data;
-        else payload = j;
-        if (payload && payload.data && typeof payload.data === 'object') payload = payload.data;
-      } catch (e) {
-        return json(res, 200, { status: 'unavailable', cluster: { clusterId: '', brokers: [] }, topics: [], consumerGroups: [], lag: 0, serverTime: new Date().toISOString(), message: sanitizeCause(e.message || 'unavailable') });
-      }
+    function parseKafkaPayload(j) {
+      let payload = j;
+      if (j && j.data && typeof j.data === 'object') payload = j.data;
+      if (payload && payload.data && typeof payload.data === 'object') payload = payload.data;
+      return payload;
+    }
+    function buildOkResponse(payload) {
       const statusRaw = String(payload.status || 'unavailable').toLowerCase();
       const status = statusRaw === 'ok' ? 'ok' : (statusRaw === 'not-configured' ? 'not-configured' : 'unavailable');
       let cluster = payload.cluster || { clusterId: '', brokers: [] };
@@ -363,12 +356,90 @@ const server = http.createServer((req, res) => {
       if (typeof payload.lag === 'number') lag = Number(payload.lag);
       else if (groups.length) lag = groups.reduce((s, g) => s + Number(g.lag ?? g.totalLag ?? 0), 0);
       const message = sanitizeCause(String(payload.message || (status === 'ok' ? 'Conectado' : status)));
-      return json(res, 200, { status, cluster, topics, consumerGroups: groups, lag, serverTime: new Date().toISOString(), message });
-    }).catch((e) => {
+      return { status, cluster, topics, consumerGroups: groups, lag, serverTime: new Date().toISOString(), message };
+    }
+    function isHibernatePayload(payload, httpStatus) {
+      if (httpStatus === 503) return true;
+      const msg = String((payload && (payload.message || payload.error)) || '').toLowerCase();
+      return msg.includes('hibernate') || msg.includes('wake') || msg.includes('cold start') || msg.includes('timeoutexception');
+    }
+    async function fetchOnce(signal) {
+      return fetch(urlEnv, { signal, headers: { 'Accept': 'application/json' }, cache: 'no-store' });
+    }
+    const sig = typeof AbortSignal.timeout === 'function' ? AbortSignal.timeout(KAFKA_TIMEOUT_MS) : undefined;
+    let ctrl;
+    let tid;
+    if (!sig) { ctrl = new AbortController(); tid = setTimeout(() => ctrl.abort(), KAFKA_TIMEOUT_MS); }
+    fetchOnce(sig || ctrl.signal).then(async (up) => {
+      if (tid) clearTimeout(tid);
+      let payload;
+      try {
+        const j = await up.json();
+        payload = parseKafkaPayload(j);
+      } catch (e) {
+        // si 503 con body no-json, tratar como hibernate retry
+        if (up.status === 503) {
+          await new Promise(r => setTimeout(r, 2000));
+          const sig2 = typeof AbortSignal.timeout === 'function' ? AbortSignal.timeout(KAFKA_TIMEOUT_MS) : undefined;
+          let ctrl2; let tid2;
+          if (!sig2) { ctrl2 = new AbortController(); tid2 = setTimeout(() => ctrl2.abort(), KAFKA_TIMEOUT_MS); }
+          try {
+            const up2 = await fetchOnce(sig2 || ctrl2.signal);
+            if (tid2) clearTimeout(tid2);
+            const j2 = await up2.json();
+            const p2 = parseKafkaPayload(j2);
+            return json(res, 200, buildOkResponse(p2));
+          } catch (e2) {
+            if (tid2) clearTimeout(tid2);
+            const isTimeout2 = e2 && (e2.name === 'AbortError' || e2.name === 'TimeoutError');
+            const raw2 = isTimeout2 ? 'BE durmiendo (free tier) — reintenta en 30s: TimeoutException: ' + (e2.message || 'timeout ' + KAFKA_TIMEOUT_MS + 'ms') : sanitizeCause(e2.message || String(e2));
+            return json(res, 200, { status: 'unavailable', cluster: { clusterId: '', brokers: [] }, topics: [], consumerGroups: [], lag: 0, serverTime: new Date().toISOString(), message: raw2 });
+          }
+        }
+        return json(res, 200, { status: 'unavailable', cluster: { clusterId: '', brokers: [] }, topics: [], consumerGroups: [], lag: 0, serverTime: new Date().toISOString(), message: sanitizeCause(e.message || 'unavailable') });
+      }
+      if (isHibernatePayload(payload, up.status)) {
+        await new Promise(r => setTimeout(r, 2000));
+        const sig2 = typeof AbortSignal.timeout === 'function' ? AbortSignal.timeout(KAFKA_TIMEOUT_MS) : undefined;
+        let ctrl2; let tid2;
+        if (!sig2) { ctrl2 = new AbortController(); tid2 = setTimeout(() => ctrl2.abort(), KAFKA_TIMEOUT_MS); }
+        try {
+          const up2 = await fetchOnce(sig2 || ctrl2.signal);
+          if (tid2) clearTimeout(tid2);
+          const j2 = await up2.json();
+          const p2 = parseKafkaPayload(j2);
+          return json(res, 200, buildOkResponse(p2));
+        } catch (e2) {
+          if (tid2) clearTimeout(tid2);
+          const isTimeout2 = e2 && (e2.name === 'AbortError' || e2.name === 'TimeoutError');
+          const raw2 = isTimeout2 ? 'BE durmiendo (free tier) — reintenta en 30s: TimeoutException: ' + (e2.message || 'timeout ' + KAFKA_TIMEOUT_MS + 'ms') : sanitizeCause(e2.message || String(e2));
+          return json(res, 200, { status: 'unavailable', cluster: { clusterId: '', brokers: [] }, topics: [], consumerGroups: [], lag: 0, serverTime: new Date().toISOString(), message: raw2 });
+        }
+      }
+      return json(res, 200, buildOkResponse(payload));
+    }).catch(async (e) => {
       if (tid) clearTimeout(tid);
       const isTimeout = e && (e.name === 'AbortError' || e.name === 'TimeoutError');
-      const raw = isTimeout ? 'TimeoutException: ' + (e.message || 'timeout 5s') : (e.message || String(e));
-      return json(res, 200, { status: 'unavailable', cluster: { clusterId: '', brokers: [] }, topics: [], consumerGroups: [], lag: 0, serverTime: new Date().toISOString(), message: sanitizeCause(raw) });
+      if (isTimeout) {
+        await new Promise(r => setTimeout(r, 2000));
+        const sig2 = typeof AbortSignal.timeout === 'function' ? AbortSignal.timeout(KAFKA_TIMEOUT_MS) : undefined;
+        let ctrl2; let tid2;
+        if (!sig2) { ctrl2 = new AbortController(); tid2 = setTimeout(() => ctrl2.abort(), KAFKA_TIMEOUT_MS); }
+        try {
+          const up2 = await fetchOnce(sig2 || ctrl2.signal);
+          if (tid2) clearTimeout(tid2);
+          const j2 = await up2.json();
+          const p2 = parseKafkaPayload(j2);
+          return json(res, 200, buildOkResponse(p2));
+        } catch (e2) {
+          if (tid2) clearTimeout(tid2);
+          const isTimeout2 = e2 && (e2.name === 'AbortError' || e2.name === 'TimeoutError');
+          const raw2 = isTimeout2 ? 'BE durmiendo (free tier) — reintenta en 30s: TimeoutException: ' + (e2.message || 'timeout ' + KAFKA_TIMEOUT_MS + 'ms') : sanitizeCause(e2.message || String(e2));
+          return json(res, 200, { status: 'unavailable', cluster: { clusterId: '', brokers: [] }, topics: [], consumerGroups: [], lag: 0, serverTime: new Date().toISOString(), message: raw2 });
+        }
+      }
+      const raw = sanitizeCause(e.message || String(e));
+      return json(res, 200, { status: 'unavailable', cluster: { clusterId: '', brokers: [] }, topics: [], consumerGroups: [], lag: 0, serverTime: new Date().toISOString(), message: raw });
     });
     return;
   }
