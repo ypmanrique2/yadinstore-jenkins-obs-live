@@ -27,7 +27,7 @@
 param(
     [string]$Endpoint = "https://yadinstore-jenkins-obs-live.onrender.com",
     [string]$Token = "***REMOVED***",
-    [int]$SnapshotIntervalSec = 5,
+    [int]$SnapshotIntervalSec = 10,
     [int]$BatchIntervalSec = 2,
     [string]$JenkinsUrl = "http://localhost:8081",
     [string]$PrometheusUrl = "http://localhost:9090",
@@ -311,16 +311,8 @@ try {
                 }
             }
         } else {
-            # En intervalos no-snapshot, igual refrescar jenkins snapshot liviano cada BatchIntervalSec
-            if ($jenkinsSnapshot) {
-                $payload = @{ jenkins = $jenkinsSnapshot } | ConvertTo-Json -Depth 6 -Compress
-                try {
-                    Invoke-RestMethod -Method Post -Uri "$Endpoint/api/jenkins/snapshot" -Headers $headers -Body $payload -TimeoutSec 10 | Out-Null
-                    Write-Host "  [jenkins] queue:$($jenkinsSnapshot.queue) jobs:$($jenkinsSnapshot.jobs.Count)" -ForegroundColor DarkGray
-                } catch {
-                    Write-Host "  [jenkins] post error: $($_.Exception.Message)" -ForegroundColor Yellow
-                }
-            }
+            # Fix 429: no POST liviano cada 2s (antes 30/min -> 429). Solo snapshot cada 10s=6/min (<15s ONLINE) + events con batch.
+            # Jenkins snapshot se incluye en el próximo snapshot completo; evita bucket POST saturado.
         }
 
         # 4) POST batch de events (si hay)

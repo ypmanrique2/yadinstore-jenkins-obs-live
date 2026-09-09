@@ -39,7 +39,7 @@ const crypto = require('crypto');
 const PORT = process.env.PORT || 3000;
 const TOKEN = process.env.DOCKER_LIVE_TOKEN || process.env.JENKINS_LIVE_TOKEN || process.env.JENKINS_OBS_TOKEN || '';
 const MAX_EVENTS = 200;
-const RATE_LIMIT_MAX = 10; // POSTs por minuto por IP
+const RATE_LIMIT_MAX = 15; // POSTs por minuto por IP (fix 429: snapshot 10s=6/min + events burst)
 const RATE_WINDOW_MS = 60 * 1000;
 const ALLOWED_ORIGINS = [
   'https://ypmanrique2.github.io',
