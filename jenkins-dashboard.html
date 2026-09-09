@@ -88,9 +88,34 @@
         <div style="margin-top:.35rem; font-size:.68rem; color:#4b5a70;">context <code>k3d-yadinstore</code> · ns <code>yadinstore-dev</code> · verde cuando <code>nodes 2/2</code> + <code>pods 2/2</code> + fresco &lt;60s · fuente: <code>jenkins-obs-agent.ps1</code> → <code>POST /api/jenkins/snapshot {k8s}</code></div>
     </div>
 
+    <div class="card" id="kafkaCard" style="margin:0 0 .8rem; border-left:3px solid #22c55e;">
+        <div style="display:flex; gap:.5rem; align-items:center; flex-wrap:wrap; justify-content:space-between;">
+            <span style="font-size:.78rem; font-weight:700; color:#22c55e;">♨ Kafka — yadinstore.* (BE-JD via /api/jd/kafka)</span>
+            <span id="kafkaBadge" class="badge">loading…</span>
+            <span id="kafkaHint" style="font-size:.70rem; color:#6b7a90;">GET /api/jd/kafka same-origin poll 10s cache:no-store</span>
+        </div>
+        <div class="kpis" style="margin-top:.6rem;">
+            <div class="kpi"><div class="v" id="kpi-brokers">—</div><div class="l">brokers</div></div>
+            <div class="kpi"><div class="v" id="kpi-topics">—</div><div class="l">topics</div></div>
+            <div class="kpi"><div class="v" id="kpi-groups">—</div><div class="l">groups</div></div>
+            <div class="kpi"><div class="v" id="kpi-lag">—</div><div class="l">lag</div></div>
+        </div>
+        <div style="display:grid; grid-template-columns:1fr 1fr; gap:.6rem; margin-top:.6rem;">
+            <div><h2 style="font-size:.75rem; margin:.2rem 0 .4rem;">Brokers</h2><table><thead><tr><th>ID</th><th>Host:Port</th><th>Rack</th></tr></thead><tbody id="brokers-body"><tr><td colspan="3" class="empty">Cargando…</td></tr></tbody></table></div>
+            <div><h2 style="font-size:.75rem; margin:.2rem 0 .4rem;">Topics</h2><table><thead><tr><th>Name</th><th>Partitions</th><th>Replicas</th></tr></thead><tbody id="topics-body"><tr><td colspan="3" class="empty">Cargando…</td></tr></tbody></table></div>
+        </div>
+        <div style="display:grid; grid-template-columns:1fr 1fr; gap:.6rem; margin-top:.6rem;">
+            <div><h2 style="font-size:.75rem; margin:.2rem 0 .4rem;">Consumer Groups</h2><table><thead><tr><th>Group</th><th>State</th><th>Members</th><th>Lag</th></tr></thead><tbody id="groups-body"><tr><td colspan="4" class="empty">Cargando…</td></tr></tbody></table></div>
+            <div><h2 style="font-size:.75rem; margin:.2rem 0 .4rem;">Members</h2><table><thead><tr><th>ClientID</th><th>Host</th><th>Partitions</th></tr></thead><tbody id="members-body"><tr><td colspan="3" class="empty">Cargando…</td></tr></tbody></table></div>
+        </div>
+        <div style="margin-top:.6rem;"><h2 style="font-size:.75rem; margin:.2rem 0 .4rem;">Lag history (60 polls)</h2><svg id="lag-chart" width="100%" height="80" viewBox="0 0 600 80" style="background:#0b0e14; border:1px solid #222c3d; border-radius:8px; display:block;"></svg></div>
+        <div id="kafkaWarn" style="display:none; margin-top:.5rem; font-size:.72rem; color:#eab308; background:rgba(234,179,8,.12); border:1px solid rgba(234,179,8,.4); border-radius:6px; padding:.4rem .6rem;"></div>
+        <div style="margin-top:.3rem; font-size:.66rem; color:#4b5a70;">source: <code>GET /api/jd/kafka?limit=100</code> server-side adapter (SASL jamás browser) + <code>textContent</code> only + sanitize ***</div>
+    </div>
+
     <div class="card" style="margin-top:.2rem" id="topologia-3d-card">
         <h2>Topología 3D — YadinStore (Prod + Local + Observabilidad) <span class="badge ok" style="margin-left:.4rem;">BE-JD iframe porcelain</span> <a href="/yadinstore-topology-3d.html" target="_blank" rel="noopener" style="font-size:.70rem; color:#60a5fa; margin-left:.5rem;">abrir fullscreen ↗</a></h2>
-        <div style="font-size:.72rem; color:#6b7a90; margin-bottom:.6rem;">Iframe <code>/yadinstore-topology-3d.html?embed=1</code> · 1378×620 trace · 3 views (request-path / observabilidad / cicd-keepalive) · <code>?embed=1</code> oculta toolbar · <span style="color:#22c55e;">live postMessage preparado: /api/jenkins/live 2s + /api/v1/kafka/activity → <code>type:'yadinstore-live'</code> anima aristas s cycles signal-flow motion-forward (futuro Kubernetes)</span> · same-origin (no CSP BE-KD) · <code>BE-JD Tab iframe (no BE-KD por CSP)</code></div>
+        <div style="font-size:.72rem; color:#6b7a90; margin-bottom:.6rem;">Iframe <code>/yadinstore-topology-3d.html?embed=1</code> · 1378×620 trace · 3 views (request-path / observabilidad / cicd-keepalive) · <code>?embed=1</code> oculta toolbar · <span style="color:#22c55e;">live postMessage preparado: /api/jenkins/live 2s + /api/jd/kafka → <code>type:'yadinstore-live'</code> anima aristas s cycles signal-flow motion-forward (futuro Kubernetes)</span> · same-origin (no CSP BE-KD) · <code>BE-JD Tab iframe (no BE-KD por CSP)</code></div>
         <div style="border:1px solid #222c3d; border-radius:10px; overflow:hidden; background:#020617;">
             <iframe id="topoFrame" src="/yadinstore-topology-3d.html?embed=1" loading="lazy" title="YadinStore Topología 3D" style="width:100%; height:620px; border:0; display:block; background:#020617;" allow="fullscreen"></iframe>
         </div>
@@ -165,7 +190,7 @@
     </div>
 
     <div class="card" style="margin-top:1rem">
-        <h2>Logs en vivo · ring 100 sanitizado password=*** trace demo-trace-abc123</h2>
+        <h2>Logs en vivo · ring 100 sanitizado *** trace demo-trace-abc123</h2>
         <div style="font-size:.72rem; color:#6b7a90; margin-bottom:.6rem;">GET /api/v1/observability/logs?limit=20 · <span style="color:#22c55e">INFO</span> verde · <span style="color:#ef4444">ERROR</span> rojo · traceId mono · sanitize demo · poll 10s (bucket 30/min)</div>
         <div style="overflow-x:auto;">
             <table class="logs-table">
@@ -589,21 +614,139 @@
             const payload = { type:'yadinstore-live', jenkins: { queue: Number(jenkins.queue ?? 0), executors: jenkins.executors || {busy:0,idle:0}, jobs: Array.isArray(jenkins.jobs) ? jenkins.jobs : [] }, obs: { outboxPending: Number(obs.outboxPending ?? obs.outbox_pending ?? 0), kafkaPublishErrors: Number(obs.kafkaPublishErrors ?? 0), p95: p95, histogram: histogram }, kafka: { lag: Number(kafka.lag ?? 0), groups: Array.isArray(kafka.groups) ? kafka.groups : [], errors: Number(kafka.errors ?? obs.kafkaPublishErrors ?? 0) }, containers: containers, containerCount: containers.length, k8s: k8s, serverTime: lastLiveCache.serverTime || new Date().toISOString(), source:'be-jd-jenkins-dashboard', version:1 };
             try { frame.contentWindow.postMessage(payload, location.origin); } catch(e) {}
         }
+        // === Kafka BE-JD /api/jd/kafka — same-origin, textContent only, sanitize, lag-chart 60 polls ===
+        let kafkaLagHistory = [];
+        function renderKafka(data){
+            try {
+                const status = String(data.status || 'unavailable').toLowerCase();
+                const brokers = (data.cluster && Array.isArray(data.cluster.brokers)) ? data.cluster.brokers : [];
+                const topics = Array.isArray(data.topics) ? data.topics : [];
+                const groups = Array.isArray(data.consumerGroups) ? data.consumerGroups : (Array.isArray(data.groups) ? data.groups : []);
+                const lag = Number(data.lag ?? 0);
+                const message = String(data.message || '');
+                const kpiB = $('kpi-brokers');
+                if(kpiB) kpiB.textContent = String(brokers.length);
+                const kpiT = $('kpi-topics');
+                if(kpiT) kpiT.textContent = String(topics.length);
+                const kpiG = $('kpi-groups');
+                if(kpiG) kpiG.textContent = String(groups.length);
+                const kpiL = $('kpi-lag');
+                if(kpiL) kpiL.textContent = String(lag);
+                const badge = $('kafkaBadge');
+                if(badge){
+                    if(status==='ok'){ badge.textContent='OK'; badge.className='badge ok'; }
+                    else if(status==='not-configured'){ badge.textContent='not-configured'; badge.className='badge warn'; }
+                    else { badge.textContent='unavailable'; badge.className='badge warn'; }
+                    badge.title = message.slice(0,120);
+                }
+                const warn = $('kafkaWarn');
+                if(warn){
+                    if(status!=='ok'){
+                        warn.style.display='block';
+                        warn.textContent = message || 'Kafka no disponible — free tier sleep o broker caido';
+                    } else { warn.style.display='none'; warn.textContent=''; }
+                }
+                const bb = $('brokers-body');
+                if(bb){
+                    if(!brokers.length) bb.innerHTML='<tr><td colspan="3" class="empty">Sin brokers — '+esc(status)+'</td></tr>';
+                    else {
+                        bb.innerHTML='';
+                        brokers.forEach(function(b){
+                            const tr=document.createElement('tr');
+                            const tdId=document.createElement('td'); tdId.textContent=String(b.id ?? ''); tr.appendChild(tdId);
+                            const tdHost=document.createElement('td'); tdHost.textContent=String(b.host||'')+':'+String(b.port||''); tr.appendChild(tdHost);
+                            const tdRack=document.createElement('td'); tdRack.textContent=String(b.rack||''); tr.appendChild(tdRack);
+                            bb.appendChild(tr);
+                        });
+                    }
+                }
+                const tb = $('topics-body');
+                if(tb){
+                    if(!topics.length) tb.innerHTML='<tr><td colspan="3" class="empty">Sin topics</td></tr>';
+                    else {
+                        tb.innerHTML='';
+                        topics.forEach(function(t){
+                            const tr=document.createElement('tr');
+                            const tdN=document.createElement('td'); tdN.textContent=String(t.name||''); tr.appendChild(tdN);
+                            const tdP=document.createElement('td'); tdP.textContent=String(t.partitions ?? 0); tr.appendChild(tdP);
+                            const tdR=document.createElement('td'); tdR.textContent=String(t.replicas ?? 0); tr.appendChild(tdR);
+                            tb.appendChild(tr);
+                        });
+                    }
+                }
+                const gb = $('groups-body');
+                if(gb){
+                    if(!groups.length) gb.innerHTML='<tr><td colspan="4" class="empty">Sin groups</td></tr>';
+                    else {
+                        gb.innerHTML='';
+                        groups.forEach(function(g){
+                            const tr=document.createElement('tr');
+                            const tdG=document.createElement('td'); tdG.textContent=String(g.groupId||''); tr.appendChild(tdG);
+                            const tdS=document.createElement('td'); tdS.textContent=String(g.state||''); tr.appendChild(tdS);
+                            const tdM=document.createElement('td'); tdM.textContent=String(g.members ?? 0); tr.appendChild(tdM);
+                            const tdL=document.createElement('td'); tdL.textContent=String(g.lag ?? 0); tr.appendChild(tdL);
+                            gb.appendChild(tr);
+                        });
+                    }
+                }
+                const mb = $('members-body');
+                if(mb){
+                    let members=[];
+                    groups.forEach(function(g){ if(Array.isArray(g.memberDetails)) members = members.concat(g.memberDetails); });
+                    if(!members.length) mb.innerHTML='<tr><td colspan="3" class="empty">Sin members</td></tr>';
+                    else {
+                        mb.innerHTML='';
+                        members.slice(0,20).forEach(function(m){
+                            const tr=document.createElement('tr');
+                            const tdC=document.createElement('td'); tdC.textContent=String(m.clientId||''); tr.appendChild(tdC);
+                            const tdH=document.createElement('td'); tdH.textContent=String(m.host||''); tr.appendChild(tdH);
+                            const tdP=document.createElement('td'); tdP.textContent=Array.isArray(m.partitions)? m.partitions.join(', ') : String(m.partitions||''); tr.appendChild(tdP);
+                            mb.appendChild(tr);
+                        });
+                    }
+                }
+                // lag chart history 60 polls
+                kafkaLagHistory.push(lag);
+                if(kafkaLagHistory.length>60) kafkaLagHistory = kafkaLagHistory.slice(-60);
+                const svg=$('lag-chart');
+                if(svg){
+                    const w=600,h=80,pad=6;
+                    const vals=kafkaLagHistory;
+                    const max=Math.max(1, Math.max.apply(null, vals));
+                    let d='';
+                    vals.forEach(function(v,i){
+                        const x= pad + (i/(59))*(w-pad*2);
+                        const y= h - pad - (v/max)*(h-pad*2);
+                        d += (i===0? 'M':'L')+x.toFixed(1)+','+y.toFixed(1)+' ';
+                    });
+                    svg.innerHTML='';
+                    const path=document.createElementNS('http://www.w3.org/2000/svg','path');
+                    path.setAttribute('d', d.trim());
+                    path.setAttribute('fill','none');
+                    path.setAttribute('stroke', lag>0 ? '#eab308' : '#22c55e');
+                    path.setAttribute('stroke-width','2');
+                    path.setAttribute('stroke-linejoin','round');
+                    path.setAttribute('stroke-linecap','round');
+                    svg.appendChild(path);
+                }
+                // update live cache for topology
+                kafkaLiveCache = { lag: lag, groups: groups, errors: 0 };
+                if(lastLiveCache) pushLiveToTopology();
+            } catch(e){}
+        }
         async function fetchKafkaActivity(){
             try {
-                const r = await fetch(BACKEND + '/api/v1/kafka/activity', { headers:{'Accept':'application/json'} });
-                if(r.status===429) return;
-                if(!r.ok) throw new Error('kafka '+r.status);
+                const r = await fetch('/api/jd/kafka?limit=100', { cache:'no-store', headers:{'Accept':'application/json'} });
+                if(r.status===429){
+                    const b=$('kafkaBadge'); if(b){ b.textContent='429 rate-limited'; b.className='badge warn'; }
+                    return;
+                }
                 const j = await r.json();
-                const d = j.data || j;
-                const groups = Array.isArray(d.groups) ? d.groups : (Array.isArray(d.topics) ? d.topics : []);
-                let lag = Number(d.lag ?? d.totalLag ?? 0);
-                if(!lag && groups.length){ lag = groups.reduce((s,g)=> s + Number(g.lag ?? g.totalLag ?? 0), 0); }
-                const errors = Number(d.errors ?? d.kafkaPublishErrors ?? 0);
-                kafkaLiveCache = { lag: lag, groups: groups, errors: errors };
-                if(lastLiveCache) pushLiveToTopology();
+                renderKafka(j);
             } catch(e) {
-                // keep last cache, no throw
+                // network error — keep last, show warn
+                const b=$('kafkaBadge'); if(b){ b.textContent='error'; b.className='badge err'; }
+                const w=$('kafkaWarn'); if(w){ w.style.display='block'; w.textContent='Error fetch /api/jd/kafka: '+esc(e.message||String(e)); }
             }
         }
         // wrap render to cache lastLive + push + cartelito + k8s (mantiene AGENT ONLINE intacto)

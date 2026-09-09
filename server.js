@@ -57,7 +57,11 @@ const state = {
   lastSeen: null, // ISO del último POST del agente
 };
 
+const KAFKA_ACTIVITY_URL = process.env.KAFKA_ACTIVITY_URL || 'https://yadinstore-backend.onrender.com/api/v1/kafka/activity';
+const KAFKA_RATE_LIMIT_MAX = 30; // GET /api/jd/kafka por minuto por IP (bucket separado)
+const KAFKA_TIMEOUT_MS = 5000;
 const rateMap = new Map(); // ip -> { count, resetAt }
+const rateMapKafka = new Map(); // bucket separado para GET /api/jd/kafka
 
 function json(res, code, obj, extraHeaders) {
   const headers = { 'Content-Type': 'application/json; charset=utf-8', ...extraHeaders };
@@ -78,6 +82,8 @@ function readBody(req, cb) {
 function sanitizeCause(s) {
   if (!s) return s;
   let v = String(s).slice(0, 250);
+  const nl = v.indexOf('\n');
+  if (nl > 0) v = v.slice(0, nl);
   // oculta secretos (password, token, secret, api_key, email) igual que KafkaActivityController:250
   v = v.replace(/password\s*=\s*[^&\s,;]+/gi, 'password=***');
   v = v.replace(/passwd\s*=\s*[^&\s,;]+/gi, 'passwd=***');
@@ -85,6 +91,8 @@ function sanitizeCause(s) {
   v = v.replace(/token\s*=\s*[^&\s,;]+/gi, 'token=***');
   v = v.replace(/api[_-]?key\s*=\s*[^&\s,;]+/gi, 'api_key=***');
   v = v.replace(/([a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,})/g, '***@***');
+  v = v.replace(/\b[\w-]+\.aivencloud\.com:\d+\b/g, '***');
+  v = v.replace(/\b[\w-]+\.aivencloud\.com\b/g, '***');
   return v;
 }
 
@@ -109,6 +117,23 @@ function rateLimited(req, res) {
   }
   entry.count += 1;
   if (entry.count > RATE_LIMIT_MAX) {
+    const retryAfter = Math.ceil((entry.resetAt - now) / 1000);
+    json(res, 429, { error: 'rate_limited', retryAfter }, { 'Retry-After': String(retryAfter) });
+    return true;
+  }
+  return false;
+}
+
+function rateLimitedKafka(req, res) {
+  const ip = (req.headers['x-forwarded-for'] || req.socket.remoteAddress || 'unknown').split(',')[0].trim();
+  const now = Date.now();
+  let entry = rateMapKafka.get(ip);
+  if (!entry || now > entry.resetAt) {
+    entry = { count: 0, resetAt: now + RATE_WINDOW_MS };
+    rateMapKafka.set(ip, entry);
+  }
+  entry.count += 1;
+  if (entry.count > KAFKA_RATE_LIMIT_MAX) {
     const retryAfter = Math.ceil((entry.resetAt - now) / 1000);
     json(res, 429, { error: 'rate_limited', retryAfter }, { 'Retry-After': String(retryAfter) });
     return true;
@@ -300,6 +325,59 @@ const server = http.createServer((req, res) => {
       res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': 'public, max-age=60' });
       res.end(data);
     });
+  }
+
+  // GET /api/jd/kafka — adapter hexagonal server-side fetch a BE (KAFKA_ACTIVITY_URL), siempre 200 idempotente
+  if (req.method === 'GET' && url.pathname === '/api/jd/kafka') {
+    if (rateLimitedKafka(req, res)) return;
+    let limit = parseInt(url.searchParams.get('limit') || '100', 10);
+    if (isNaN(limit) || limit < 1) limit = 1;
+    if (limit > 200) limit = 200;
+    const urlEnv = (KAFKA_ACTIVITY_URL || '').trim();
+    if (!urlEnv) {
+      return json(res, 200, { status: 'not-configured', cluster: { clusterId: '', brokers: [] }, topics: [], consumerGroups: [], lag: 0, serverTime: new Date().toISOString(), message: sanitizeCause('KAFKA_BOOTSTRAP_SERVERS no definido — el broker no está activado en este entorno') });
+    }
+    const sig = typeof AbortSignal.timeout === 'function' ? AbortSignal.timeout(KAFKA_TIMEOUT_MS) : undefined;
+    let ctrl;
+    let tid;
+    if (!sig) { ctrl = new AbortController(); tid = setTimeout(() => ctrl.abort(), KAFKA_TIMEOUT_MS); }
+    fetch(urlEnv, { signal: sig || ctrl.signal, headers: { 'Accept': 'application/json' } }).then(async (up) => {
+      if (tid) clearTimeout(tid);
+      let payload;
+      try {
+        const j = await up.json();
+        if (j && j.data && typeof j.data === 'object') payload = j.data;
+        else payload = j;
+        if (payload && payload.data && typeof payload.data === 'object') payload = payload.data;
+      } catch (e) {
+        return json(res, 200, { status: 'unavailable', cluster: { clusterId: '', brokers: [] }, topics: [], consumerGroups: [], lag: 0, serverTime: new Date().toISOString(), message: sanitizeCause(e.message || 'unavailable') });
+      }
+      const statusRaw = String(payload.status || 'unavailable').toLowerCase();
+      const status = statusRaw === 'ok' ? 'ok' : (statusRaw === 'not-configured' ? 'not-configured' : 'unavailable');
+      let cluster = payload.cluster || { clusterId: '', brokers: [] };
+      let topics = Array.isArray(payload.topics) ? payload.topics : [];
+      let groups = Array.isArray(payload.consumerGroups) ? payload.consumerGroups : (Array.isArray(payload.groups) ? payload.groups : []);
+      topics = topics.slice(0, limit);
+      groups = groups.slice(0, limit);
+      let lag = 0;
+      if (typeof payload.lag === 'number') lag = Number(payload.lag);
+      else if (groups.length) lag = groups.reduce((s, g) => s + Number(g.lag ?? g.totalLag ?? 0), 0);
+      const message = sanitizeCause(String(payload.message || (status === 'ok' ? 'Conectado' : status)));
+      return json(res, 200, { status, cluster, topics, consumerGroups: groups, lag, serverTime: new Date().toISOString(), message });
+    }).catch((e) => {
+      if (tid) clearTimeout(tid);
+      const isTimeout = e && (e.name === 'AbortError' || e.name === 'TimeoutError');
+      const raw = isTimeout ? 'TimeoutException: ' + (e.message || 'timeout 5s') : (e.message || String(e));
+      return json(res, 200, { status: 'unavailable', cluster: { clusterId: '', brokers: [] }, topics: [], consumerGroups: [], lag: 0, serverTime: new Date().toISOString(), message: sanitizeCause(raw) });
+    });
+    return;
+  }
+
+  if (req.method === 'HEAD' && url.pathname === '/api/jd/kafka') {
+    if (rateLimitedKafka(req, res)) return;
+    res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8' });
+    res.end();
+    return;
   }
 
   // HEAD for topology + candidate (UptimeRobot / probes)
