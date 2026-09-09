@@ -57,7 +57,7 @@ const state = {
   lastSeen: null, // ISO del último POST del agente
 };
 
-const KAFKA_ACTIVITY_URL = process.env.KAFKA_ACTIVITY_URL || 'https://yadinstore-backend.onrender.com/api/v1/kafka/activity';
+const KAFKA_ACTIVITY_URL = process.env.KAFKA_ACTIVITY_URL ?? 'https://yadinstore-backend.onrender.com/api/v1/kafka/activity';
 const KAFKA_RATE_LIMIT_MAX = 30; // GET /api/jd/kafka por minuto por IP (bucket separado)
 const KAFKA_TIMEOUT_MS = 5000;
 const rateMap = new Map(); // ip -> { count, resetAt }
