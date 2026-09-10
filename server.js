@@ -295,7 +295,7 @@ const server = http.createServer((req, res) => {
   if (req.method === 'GET' && (url.pathname === '/' || url.pathname === '/jenkins-dashboard.html' || url.pathname === '/dashboard.html')) {
     const file = path.join(__dirname, 'jenkins-dashboard.html');
     return fs.readFile(file, (err, data) => {
-      if (err) { res.writeHead(500, { 'Content-Type': 'text/plain; charset=utf-8' }); res.end('jenkins-dashboard.html no encontrado'); return; }
+      if (err) return json(res, 500, { error: 'jenkins-dashboard.html no encontrado' });
       res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8', 'Content-Security-Policy': "default-src 'self'; connect-src 'self' https://yadinstore-jenkins-obs-live.onrender.com https://yadinstore-backend.onrender.com https://ypmanrique2.github.io http://localhost:* http://127.0.0.1:*; style-src 'unsafe-inline'; script-src 'self' 'unsafe-inline'" });
       res.end(data);
     });
@@ -305,7 +305,7 @@ const server = http.createServer((req, res) => {
   if (req.method === 'GET' && (url.pathname === '/yadinstore-topology-3d.html' || url.pathname === '/topology')) {
     const file = path.join(__dirname, 'yadinstore-topology-3d.html');
     return fs.readFile(file, (err, data) => {
-      if (err) { res.writeHead(500, { 'Content-Type': 'text/plain; charset=utf-8' }); res.end('yadinstore-topology-3d.html no encontrado'); return; }
+      if (err) return json(res, 500, { error: 'yadinstore-topology-3d.html no encontrado' });
       // CSP: allow archify inline scripts/styles + Google Fonts (archify uses JetBrains Mono), same-origin iframe embedding
       res.writeHead(200, {
         'Content-Type': 'text/html; charset=utf-8',
