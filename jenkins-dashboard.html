@@ -6,7 +6,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta http-equiv="Content-Security-Policy"
         content="default-src 'self'; connect-src 'self' https://yadinstore-jenkins-obs-live.onrender.com https://yadinstore-backend.onrender.com https://ypmanrique2.github.io http://localhost:* http://127.0.0.1:*; style-src 'unsafe-inline'; script-src 'self' 'unsafe-inline'">
-    <title>YadinStore — Jenkins en vivo (CI/CD Live)</title>
+    <title>YadinStore ÔÇö Jenkins en vivo (CI/CD Live)</title>
     <style>
         :root {
             color-scheme: dark;
@@ -275,7 +275,7 @@
             color: #d4dae6;
         }
 
-        /* ---- Métricas live BE-KD style ---- */
+        /* ---- M├®tricas live BE-KD style ---- */
         .metrics {
             display: grid;
             grid-template-columns: repeat(3, 1fr);
@@ -400,15 +400,15 @@
 </head>
 
 <body>
-    <h1>🔧 Jenkins en vivo <span>— YadinStore CI/CD Live</span></h1>
-    <div class="sub">Agente local → <code>docker events yadin-jenkins</code> + <code>Jenkins :8081/api/json</code> +
-        metrics → Render free tier · Poll jenkins 2s · metrics 5s · logs 10s · health 10s · 4 streams: jenkins / docker
-        / metrics / health → Observability BE-KD live</div>
+    <h1>­ƒöº Jenkins en vivo <span>ÔÇö YadinStore CI/CD Live</span></h1>
+    <div class="sub">Agente local ÔåÆ <code>docker events yadin-jenkins</code> + <code>Jenkins :8081/api/json</code> +
+        metrics ÔåÆ Render free tier ┬À Poll jenkins 2s ┬À metrics 5s ┬À logs 10s ┬À health 10s ┬À 4 streams: jenkins / docker
+        / metrics / health ÔåÆ Observability BE-KD live</div>
 
     <div id="ultimoDatoWrap"
         style="margin:.6rem 0 .6rem; display:flex; gap:.5rem; align-items:center; flex-wrap:wrap; background:rgba(17,22,31,.6); border:1px solid #1e293b; border-radius:10px; padding:.55rem .7rem;">
-        <span style="font-size:.70rem; color:#93c5fd; font-weight:700; letter-spacing:.04em;">● LIVE</span>
-        <span id="ultimoDato" class="badge err" style="font-size:.78rem; padding:.2rem .7rem;">Último dato: hace —
+        <span style="font-size:.70rem; color:#93c5fd; font-weight:700; letter-spacing:.04em;">ÔùÅ LIVE</span>
+        <span id="ultimoDato" class="badge err" style="font-size:.78rem; padding:.2rem .7rem;">├Ültimo dato: hace ÔÇö
             s</span>
         <span id="ultimoDatoHint" style="font-size:.72rem; color:#6b7a90;">.\jenkins-obs-agent.ps1</span>
     </div>
@@ -416,42 +416,42 @@
     <div id="k8sCard" class="card" style="margin:0 0 .8rem; padding:.6rem .8rem; border-left:3px solid #334155;">
         <div style="display:flex; gap:.6rem; align-items:center; flex-wrap:wrap; justify-content:space-between;">
             <div style="display:flex; gap:.5rem; align-items:center; flex-wrap:wrap;">
-                <span style="font-size:.78rem; font-weight:700; color:#93c5fd;">⎈ K8s/k3d local</span>
+                <span style="font-size:.78rem; font-weight:700; color:#93c5fd;">ÔÄê K8s/k3d local</span>
                 <span id="k8sBadge" class="badge" style="font-size:.72rem;">OFFLINE</span>
-                <span id="k8sNodes" class="badge" style="font-size:.72rem;">nodes —</span>
-                <span id="k8sPods" class="badge" style="font-size:.72rem;">pods —</span>
+                <span id="k8sNodes" class="badge" style="font-size:.72rem;">nodes ÔÇö</span>
+                <span id="k8sPods" class="badge" style="font-size:.72rem;">pods ÔÇö</span>
             </div>
             <span id="k8sHint" style="font-size:.70rem; color:#6b7a90;">k3d cluster list + kubectl get nodes --context
                 k3d-yadinstore</span>
         </div>
-        <div style="margin-top:.35rem; font-size:.68rem; color:#4b5a70;">context <code>k3d-yadinstore</code> · ns
-            <code>yadinstore-dev</code> · verde cuando <code>nodes 2/2</code> + <code>pods 2/2</code> + fresco &lt;60s ·
-            fuente: <code>jenkins-obs-agent.ps1</code> → <code>POST /api/jenkins/snapshot {k8s}</code></div>
+        <div style="margin-top:.35rem; font-size:.68rem; color:#4b5a70;">context <code>k3d-yadinstore</code> ┬À ns
+            <code>yadinstore-dev</code> ┬À verde cuando <code>nodes 2/2</code> + <code>pods 2/2</code> + fresco &lt;60s ┬À
+            fuente: <code>jenkins-obs-agent.ps1</code> ÔåÆ <code>POST /api/jenkins/snapshot {k8s}</code></div>
     </div>
 
     <div class="card" id="kafkaCard" style="margin:0 0 .8rem; border-left:3px solid #22c55e;">
         <div style="display:flex; gap:.5rem; align-items:center; flex-wrap:wrap; justify-content:space-between;">
-            <span style="font-size:.78rem; font-weight:700; color:#22c55e;">♨ Kafka — yadinstore.* (BE-JD via
+            <span style="font-size:.78rem; font-weight:700; color:#22c55e;">ÔÖ¿ Kafka ÔÇö yadinstore.* (BE-JD via
                 /api/jd/kafka)</span>
-            <span id="kafkaBadge" class="badge">loading…</span>
+            <span id="kafkaBadge" class="badge">loadingÔÇª</span>
             <span id="kafkaHint" style="font-size:.70rem; color:#6b7a90;">GET /api/jd/kafka same-origin poll 10s
                 cache:no-store</span>
         </div>
         <div class="kpis" style="margin-top:.6rem;">
             <div class="kpi">
-                <div class="v" id="kpi-brokers">—</div>
+                <div class="v" id="kpi-brokers">ÔÇö</div>
                 <div class="l">brokers</div>
             </div>
             <div class="kpi">
-                <div class="v" id="kpi-topics">—</div>
+                <div class="v" id="kpi-topics">ÔÇö</div>
                 <div class="l">topics</div>
             </div>
             <div class="kpi">
-                <div class="v" id="kpi-groups">—</div>
+                <div class="v" id="kpi-groups">ÔÇö</div>
                 <div class="l">groups</div>
             </div>
             <div class="kpi">
-                <div class="v" id="kpi-lag">—</div>
+                <div class="v" id="kpi-lag">ÔÇö</div>
                 <div class="l">lag</div>
             </div>
         </div>
@@ -468,7 +468,7 @@
                     </thead>
                     <tbody id="brokers-body">
                         <tr>
-                            <td colspan="3" class="empty">Cargando…</td>
+                            <td colspan="3" class="empty">CargandoÔÇª</td>
                         </tr>
                     </tbody>
                 </table>
@@ -485,7 +485,7 @@
                     </thead>
                     <tbody id="topics-body">
                         <tr>
-                            <td colspan="3" class="empty">Cargando…</td>
+                            <td colspan="3" class="empty">CargandoÔÇª</td>
                         </tr>
                     </tbody>
                 </table>
@@ -505,7 +505,7 @@
                     </thead>
                     <tbody id="groups-body">
                         <tr>
-                            <td colspan="4" class="empty">Cargando…</td>
+                            <td colspan="4" class="empty">CargandoÔÇª</td>
                         </tr>
                     </tbody>
                 </table>
@@ -522,7 +522,7 @@
                     </thead>
                     <tbody id="members-body">
                         <tr>
-                            <td colspan="3" class="empty">Cargando…</td>
+                            <td colspan="3" class="empty">CargandoÔÇª</td>
                         </tr>
                     </tbody>
                 </table>
@@ -537,36 +537,36 @@
             style="display:none; margin-top:.5rem; font-size:.72rem; color:#eab308; background:rgba(234,179,8,.12); border:1px solid rgba(234,179,8,.4); border-radius:6px; padding:.4rem .6rem;">
         </div>
         <div style="margin-top:.3rem; font-size:.66rem; color:#4b5a70;">source: <code>GET /api/jd/kafka?limit=100</code>
-            server-side adapter (SASL jamás browser) + <code>textContent</code> only + sanitize ***</div>
+            server-side adapter (SASL jam├ís browser) + <code>textContent</code> only + sanitize ***</div>
     </div>
 
     <div class="card" style="margin-top:.2rem" id="topologia-3d-card">
-        <h2>Topología 3D — YadinStore (Prod + Local + Observabilidad) <span class="badge ok"
+        <h2>Topolog├¡a 3D ÔÇö YadinStore (Prod + Local + Observabilidad) <span class="badge ok"
                 style="margin-left:.4rem;">BE-JD iframe porcelain</span> <a href="/yadinstore-topology-3d.html"
                 target="_blank" rel="noopener" style="font-size:.70rem; color:#60a5fa; margin-left:.5rem;">abrir
-                fullscreen ↗</a></h2>
+                fullscreen Ôåù</a></h2>
         <div style="font-size:.72rem; color:#6b7a90; margin-bottom:.6rem;">Iframe
-            <code>/yadinstore-topology-3d.html?embed=1</code> · 1378×620 trace · 3 views (request-path / observabilidad
-            / cicd-keepalive) · <code>?embed=1</code> oculta toolbar · <span style="color:#22c55e;">live postMessage
-                preparado: /api/jenkins/live 2s + /api/jd/kafka → <code>type:'yadinstore-live'</code> anima aristas s
-                cycles signal-flow motion-forward (futuro Kubernetes)</span> · same-origin (no CSP BE-KD) ·
+            <code>/yadinstore-topology-3d.html?embed=1</code> ┬À 1378├ù620 trace ┬À 3 views (request-path / observabilidad
+            / cicd-keepalive) ┬À <code>?embed=1</code> oculta toolbar ┬À <span style="color:#22c55e;">live postMessage
+                preparado: /api/jenkins/live 2s + /api/jd/kafka ÔåÆ <code>type:'yadinstore-live'</code> anima aristas s
+                cycles signal-flow motion-forward (futuro Kubernetes)</span> ┬À same-origin (no CSP BE-KD) ┬À
             <code>BE-JD Tab iframe (no BE-KD por CSP)</code></div>
         <div style="border:1px solid #222c3d; border-radius:10px; overflow:hidden; background:#020617;">
             <iframe id="topoFrame" src="/yadinstore-topology-3d.html?embed=1" loading="lazy"
-                title="YadinStore Topología 3D"
+                title="YadinStore Topolog├¡a 3D"
                 style="width:100%; height:620px; border:0; display:block; background:#020617;"
                 allow="fullscreen"></iframe>
         </div>
         <div style="margin-top:.45rem; font-size:.66rem; color:#4b5a70;">Fuente:
-            <code>yadinStore-Spec/yadinstore-topology-3d.html</code> (744KB archify 2.16, porcelain copy → BE-JD) +
-            <code>yadinstore-topology-3d-candidate.json</code> · vivo tras Kubernetes con s cycles + signal-flow
-            motion-forward · ver <code>yadinStore-Spec/avance_03-09-2026.md</code> · exploracion recomienda BE-JD Tab
+            <code>yadinStore-Spec/yadinstore-topology-3d.html</code> (744KB archify 2.16, porcelain copy ÔåÆ BE-JD) +
+            <code>yadinstore-topology-3d-candidate.json</code> ┬À vivo tras Kubernetes con s cycles + signal-flow
+            motion-forward ┬À ver <code>yadinStore-Spec/avance_03-09-2026.md</code> ┬À exploracion recomienda BE-JD Tab
             iframe (no BE-KD por CSP)</div>
     </div>
 
     <div class="agent" id="agent">
         <span class="dot off" id="dot"></span>
-        <span id="agentText">Esperando al agente…</span>
+        <span id="agentText">Esperando al agenteÔÇª</span>
         <span class="badge" id="eventCount">0 eventos</span>
         <span class="badge" id="containerCount">0 contenedores</span>
         <span class="badge" id="queueBadge">queue 0</span>
@@ -575,52 +575,52 @@
 
     <div class="kpis" id="kpis">
         <div class="kpi">
-            <div class="v" id="kpiQueue">—</div>
+            <div class="v" id="kpiQueue">ÔÇö</div>
             <div class="l">queue</div>
         </div>
         <div class="kpi">
-            <div class="v" id="kpiBusy">—</div>
+            <div class="v" id="kpiBusy">ÔÇö</div>
             <div class="l">executors busy</div>
         </div>
         <div class="kpi">
-            <div class="v" id="kpiIdle">—</div>
+            <div class="v" id="kpiIdle">ÔÇö</div>
             <div class="l">executors idle</div>
         </div>
         <div class="kpi">
-            <div class="v" id="kpiPending">—</div>
+            <div class="v" id="kpiPending">ÔÇö</div>
             <div class="l">outbox pending</div>
         </div>
     </div>
-    <div class="obs" id="obsLine"><span>obs: <b id="obsPending">0</b> pending · <b id="obsErrors">0</b> kafka errors ·
+    <div class="obs" id="obsLine"><span>obs: <b id="obsPending">0</b> pending ┬À <b id="obsErrors">0</b> kafka errors ┬À
         </span><span id="serverTime" style="color:#4b5a70"></span></div>
 
     <div class="grid">
         <div class="card">
-            <h2>Jenkins — jobs & builds</h2>
+            <h2>Jenkins ÔÇö jobs & builds</h2>
             <table>
                 <thead>
                     <tr>
                         <th>Job</th>
                         <th>#</th>
                         <th>Result</th>
-                        <th>Duración</th>
+                        <th>Duraci├│n</th>
                     </tr>
                 </thead>
                 <tbody id="jobs">
                     <tr>
-                        <td colspan="4" class="empty">Sin jobs todavía — levantá el agente</td>
+                        <td colspan="4" class="empty">Sin jobs todav├¡a ÔÇö levant├í el agente</td>
                     </tr>
                 </tbody>
             </table>
             <div style="margin-top:.8rem">
                 <h2 style="margin-top:.6rem">Eventos (jenkins builds + docker events)</h2>
                 <div id="events">
-                    <div class="empty">Sin eventos — <code>.\jenkins-obs-agent.ps1</code></div>
+                    <div class="empty">Sin eventos ÔÇö <code>.\jenkins-obs-agent.ps1</code></div>
                 </div>
             </div>
         </div>
         <div class="card">
-            <h2>Contenedores (docker ps — yadin-jenkins)</h2>
+            <h2>Contenedores (docker ps ÔÇö yadin-jenkins)</h2>
             <table>
                 <thead>
                     <tr>
@@ -632,42 +632,42 @@
                 </thead>
                 <tbody id="containers">
                     <tr>
-                        <td colspan="4" class="empty">Sin snapshot todavía</td>
+                        <td colspan="4" class="empty">Sin snapshot todav├¡a</td>
                     </tr>
                 </tbody>
             </table>
             <div style="margin-top:1rem">
-                <h2>Métricas en vivo · Micrometer outbox.pending + p95 histogram</h2>
+                <h2>M├®tricas en vivo ┬À Micrometer outbox.pending + p95 histogram</h2>
                 <div class="obs" style="margin-bottom:.45rem; font-size:.72rem; color:#6b7a90; flex-wrap:wrap;">
                     <span>Micrometer Gauge + Counters + <span style="color:#10b981">p95 histogram: <b
-                                id="histFlag">—</b></span></span>
-                    <span>· scrape <span id="scrapeTime" class="mono" style="color:#94a3b8">—</span></span>
-                    <span>· poll metrics 5s logs 10s buckets 30/min</span>
-                    <span id="obsBackendStatus" class="badge">backend …</span>
+                                id="histFlag">ÔÇö</b></span></span>
+                    <span>┬À scrape <span id="scrapeTime" class="mono" style="color:#94a3b8">ÔÇö</span></span>
+                    <span>┬À poll metrics 5s logs 10s buckets 30/min</span>
+                    <span id="obsBackendStatus" class="badge">backend ÔÇª</span>
                 </div>
                 <div class="metrics" id="metricsGrid">
                     <div class="metric">
-                        <div class="v" id="mPending">—</div>
+                        <div class="v" id="mPending">ÔÇö</div>
                         <div class="l">outbox.pending <span style="color:#22c55e">(Gauge)</span></div>
                     </div>
                     <div class="metric">
-                        <div class="v" id="mPublished">—</div>
+                        <div class="v" id="mPublished">ÔÇö</div>
                         <div class="l">outbox.published</div>
                     </div>
                     <div class="metric">
-                        <div class="v" id="mFailed">—</div>
+                        <div class="v" id="mFailed">ÔÇö</div>
                         <div class="l">outbox.failed</div>
                     </div>
                     <div class="metric">
-                        <div class="v" id="mErrors">—</div>
+                        <div class="v" id="mErrors">ÔÇö</div>
                         <div class="l">kafka.publish.errors</div>
                     </div>
                     <div class="metric">
-                        <div class="v" id="mP95">—</div>
+                        <div class="v" id="mP95">ÔÇö</div>
                         <div class="l">http.server.requests.p95 ms</div>
                     </div>
                     <div class="metric">
-                        <div class="v mono" id="mHist">—</div>
+                        <div class="v mono" id="mHist">ÔÇö</div>
                         <div class="l">histogram <span style="color:#10b981">true</span> badge</div>
                     </div>
                 </div>
@@ -678,34 +678,34 @@
     </div>
 
     <div class="card" style="margin-top:1rem" id="healthCard">
-        <h2>Health · backend + Elasticsearch cluster (proxy en BE, ES local only en prod)</h2>
+        <h2>Health ┬À backend + Elasticsearch cluster (proxy en BE, ES local only en prod)</h2>
         <div style="font-size:.72rem; color:#6b7a90; margin-bottom:.6rem;">GET <code
                 id="healthUrl">https://yadinstore-backend.onrender.com/api/v1/observability/health</code> + fallback
-            <code>/actuator/health</code> · local <code>http://localhost:9200/_cluster/health</code> via proxy · poll
-            10s · badges green/yellow/red · <span style="color:#eab308;">ES prod N/A free tier = LOCAL ONLY amarillo (no
-                rojo)</span> · ES demo <code>yadinstore-logs-2026.08.23 green 2 docs</code> en docker-compose</div>
+            <code>/actuator/health</code> ┬À local <code>http://localhost:9200/_cluster/health</code> via proxy ┬À poll
+            10s ┬À badges green/yellow/red ┬À <span style="color:#eab308;">ES prod N/A free tier = LOCAL ONLY amarillo (no
+                rojo)</span> ┬À ES demo <code>yadinstore-logs-2026.08.23 green 2 docs</code> en docker-compose</div>
         <div style="display:grid; grid-template-columns: repeat(2,1fr); gap:.6rem;" id="healthGrid">
             <div class="metric">
-                <div class="v" id="hBackend">—</div>
-                <div class="l">backend <span id="hBackendBadge" class="badge">…</span></div>
-                <div style="font-size:.66rem; color:#6b7a90; margin-top:.25rem;" id="hBackendDetail">—</div>
+                <div class="v" id="hBackend">ÔÇö</div>
+                <div class="l">backend <span id="hBackendBadge" class="badge">ÔÇª</span></div>
+                <div style="font-size:.66rem; color:#6b7a90; margin-top:.25rem;" id="hBackendDetail">ÔÇö</div>
             </div>
             <div class="metric">
-                <div class="v" id="hEs">—</div>
-                <div class="l">elasticsearch <span id="hEsBadge" class="badge">…</span></div>
-                <div style="font-size:.66rem; color:#6b7a90; margin-top:.25rem;" id="hEsDetail">—</div>
+                <div class="v" id="hEs">ÔÇö</div>
+                <div class="l">elasticsearch <span id="hEsBadge" class="badge">ÔÇª</span></div>
+                <div style="font-size:.66rem; color:#6b7a90; margin-top:.25rem;" id="hEsDetail">ÔÇö</div>
             </div>
         </div>
         <div id="healthRaw" style="margin-top:.45rem; font-size:.66rem; color:#4b5a70; word-break:break-all;"></div>
         <div style="margin-top:.35rem; font-size:.66rem; color:#4b5a70;">Shards: <span id="hShards"
-                class="mono">—</span></div>
+                class="mono">ÔÇö</span></div>
     </div>
 
     <div class="card" style="margin-top:1rem">
-        <h2>Logs en vivo · ring 100 sanitizado *** trace demo-trace-abc123</h2>
-        <div style="font-size:.72rem; color:#6b7a90; margin-bottom:.6rem;">GET /api/v1/observability/logs?limit=20 ·
-            <span style="color:#22c55e">INFO</span> verde · <span style="color:#ef4444">ERROR</span> rojo · traceId mono
-            · sanitize demo · poll 10s (bucket 30/min)</div>
+        <h2>Logs en vivo ┬À ring 100 sanitizado *** trace demo-trace-abc123</h2>
+        <div style="font-size:.72rem; color:#6b7a90; margin-bottom:.6rem;">GET /api/v1/observability/logs?limit=20 ┬À
+            <span style="color:#22c55e">INFO</span> verde ┬À <span style="color:#ef4444">ERROR</span> rojo ┬À traceId mono
+            ┬À sanitize demo ┬À poll 10s (bucket 30/min)</div>
         <div style="overflow-x:auto;">
             <table class="logs-table">
                 <thead>
@@ -718,17 +718,17 @@
                 </thead>
                 <tbody id="logsBody">
                     <tr>
-                        <td colspan="4" class="empty">Cargando logs…</td>
+                        <td colspan="4" class="empty">Cargando logsÔÇª</td>
                     </tr>
                 </tbody>
             </table>
         </div>
     </div>
 
-    <footer>GitHub Actions + Jenkins pipeline · GitHub Pages (estático) + Render
-        <code>yadinstore-jenkins-obs-live</code> en vivo · 100% free tier · CORS <code>ypmanrique2.github.io</code> +
-        backend live · rate-limit 30/min por bucket (metrics/logs/health) · poll metrics 5s logs 10s health 10s · BE-KD
-        kafka-dashboard.html style · <span style="color:#22c55e;">Topología 3D BE-JD iframe 620px + postMessage
+    <footer>GitHub Actions + Jenkins pipeline ┬À GitHub Pages (est├ítico) + Render
+        <code>yadinstore-jenkins-obs-live</code> en vivo ┬À 100% free tier ┬À CORS <code>ypmanrique2.github.io</code> +
+        backend live ┬À rate-limit 30/min por bucket (metrics/logs/health) ┬À poll metrics 5s logs 10s health 10s ┬À BE-KD
+        kafka-dashboard.html style ┬À <span style="color:#22c55e;">Topolog├¡a 3D BE-JD iframe 620px + postMessage
             live</span></footer>
 
     <script>
@@ -749,7 +749,7 @@
             if (s.includes('unstable') || s.includes('abort')) return 'result-unstable';
             return 'result-unknown';
         }
-        // cache-buster v=hash → evita Render cache vieja; Ctrl+F5 fuerza reload si deploy lag
+        // cache-buster v=hash ÔåÆ evita Render cache vieja; Ctrl+F5 fuerza reload si deploy lag
         const DASHBOARD_VERSION = '2026-09-08-topology-live-flow-v1';
         async function poll() {
             try {
@@ -768,7 +768,7 @@
             const now = new Date(data.serverTime).getTime();
             const alive = last > 0 && (now - last) < 15000;
             $('dot').className = 'dot ' + (alive ? 'on' : 'off');
-            $('agentText').textContent = alive ? 'Agente ONLINE — último POST ' + new Date(last).toLocaleTimeString() : 'Agente OFFLINE (último POST: ' + (last ? new Date(last).toLocaleTimeString() : 'nunca') + ')';
+            $('agentText').textContent = alive ? 'Agente ONLINE ÔÇö ├║ltimo POST ' + new Date(last).toLocaleTimeString() : 'Agente OFFLINE (├║ltimo POST: ' + (last ? new Date(last).toLocaleTimeString() : 'nunca') + ')';
             $('eventCount').textContent = (Array.isArray(data.events) ? data.events : []).length + ' eventos';
             $('containerCount').textContent = (Array.isArray(data.containers) ? data.containers : []).length + ' contenedores';
             const j = data.jenkins || { queue: 0, executors: { busy: 0, idle: 0 }, jobs: [] };
@@ -787,13 +787,13 @@
             const jobs = j.jobs || [];
             $('jobs').innerHTML = jobs.length ? jobs.map(job => {
                 const lb = job.lastBuild || {};
-                const num = lb.number ?? lb.build ?? '—';
+                const num = lb.number ?? lb.build ?? 'ÔÇö';
                 const res = lb.result || 'UNKNOWN';
-                const dur = lb.duration ? (lb.duration / 1000).toFixed(1) + 's' : '—';
+                const dur = lb.duration ? (lb.duration / 1000).toFixed(1) + 's' : 'ÔÇö';
                 return `<tr><td>${esc(job.name)}</td><td>${esc(num)}</td><td class="${resultClass(res)}">${esc(res)}</td><td>${esc(dur)}</td></tr>`;
-            }).join('') : '<tr><td colspan="4" class="empty">Sin jobs todavía</td></tr>';
+            }).join('') : '<tr><td colspan="4" class="empty">Sin jobs todav├¡a</td></tr>';
 
-            // Events (últimos 40) — si agente offline o sin builds, muestra placeholder honesto con instrucciones (no rojo error)
+            // Events (├║ltimos 40) ÔÇö si agente offline o sin builds, muestra placeholder honesto con instrucciones (no rojo error)
             const ev = (Array.isArray(data.events) ? data.events : []).slice(-40).reverse();
             if (ev.length) {
                 $('events').innerHTML = ev.map(e => `
@@ -805,23 +805,23 @@
                 </div>`).join('');
             } else {
                 const alive = (data.lastSeen && (new Date(data.serverTime).getTime() - new Date(data.lastSeen).getTime()) < 15000);
-                const agentHint = alive ? 'Agente ONLINE pero aún sin docker events/builds (normal si Jenkins idle).' : 'Agente OFFLINE — ejecutá <code>.\\jenkins-obs-agent.ps1</code> en local (requiere Docker Desktop + Jenkins :8081).';
+                const agentHint = alive ? 'Agente ONLINE pero a├║n sin docker events/builds (normal si Jenkins idle).' : 'Agente OFFLINE ÔÇö <code>.\\jenkins-obs-agent.ps1</code>';
                 $('events').innerHTML = `<div class="empty" style="line-height:1.5;">
-                    <div>Sin eventos todavía — <span style="color:#eab308;">esperado en free tier si el agente no está corriendo</span></div>
+                    <div>Sin eventos todav├¡a ÔÇö <span style="color:#eab308;">esperado en free tier si el agente no est├í corriendo</span></div>
                     <div style="margin-top:.4rem; color:#94a3b8;">${agentHint}</div>
                     <div style="margin-top:.6rem; display:flex; gap:.4rem; flex-wrap:wrap; align-items:center;">
-                        <a href="http://localhost:8081/job/yadinstore-demo-pipeline/build" target="_blank" rel="noopener" style="display:inline-block; background:#1a2130; border:1px solid #2a3547; border-radius:6px; padding:.3rem .6rem; color:#60a5fa; text-decoration:none; font-size:.75rem;">▶ Ejecutar build en Jenkins (:8081)</a>
+                        <a href="http://localhost:8081/job/yadinstore-demo-pipeline/build" target="_blank" rel="noopener" style="display:inline-block; background:#1a2130; border:1px solid #2a3547; border-radius:6px; padding:.3rem .6rem; color:#60a5fa; text-decoration:none; font-size:.75rem;">ÔûÂ Ejecutar build en Jenkins (:8081)</a>
                         <span style="font-size:.70rem; color:#6b7a90;">o <code>docker events --format json --filter container=yadinstore-jenkins</code> para flujo docker</span>
                     </div>
-                    <div style="margin-top:.4rem; font-size:.70rem; color:#4b5a70;">Cuando el agente esté ONLINE, este panel muestra últimos 40 eventos (jenkins builds + docker events) · poll 2s · ring 200</div>
+                    <div style="margin-top:.4rem; font-size:.70rem; color:#4b5a70;">Cuando el agente est├® ONLINE, este panel muestra ├║ltimos 40 eventos (jenkins builds + docker events) ┬À poll 2s ┬À ring 200</div>
                 </div>`;
             }
 
-            // Containers — fix: c.Ports puede venir como string "8081:8080" desde docker ps
+            // Containers ÔÇö fix: c.Ports puede venir como string "8081:8080" desde docker ps
             const cs = Array.isArray(data.containers) ? data.containers : [];
             $('containers').innerHTML = cs.length ? cs.map(c => {
                 const portsArr = Array.isArray(c.Ports) ? c.Ports : (c.Ports ? [c.Ports] : []);
-                const portsStr = portsArr.map(p => typeof p === 'string' ? p : ((p.PublicPort || '') + '→' + p.PrivatePort + '/' + (p.Type || 'tcp'))).join(', ');
+                const portsStr = portsArr.map(p => typeof p === 'string' ? p : ((p.PublicPort || '') + 'ÔåÆ' + p.PrivatePort + '/' + (p.Type || 'tcp'))).join(', ');
                 return `
                 <tr>
                     <td>${esc(c.Names ? (Array.isArray(c.Names) ? c.Names[0] : c.Names) : (c.name || c.Names || '?'))}</td>
@@ -829,7 +829,7 @@
                     <td class="${statusClass(c.Status || c.status)}">${esc(c.Status || c.status || '?')}</td>
                     <td>${esc(portsStr)}</td>
                 </tr>`;
-            }).join('') : '<tr><td colspan="4" class="empty">Sin snapshot todavía</td></tr>';
+            }).join('') : '<tr><td colspan="4" class="empty">Sin snapshot todav├¡a</td></tr>';
         }
         async function fetchMetrics() {
             try {
@@ -877,11 +877,11 @@
             const histFlag = $('histFlag');
             if (histFlag) { histFlag.innerHTML = hist ? '<span style="color:#10b981">true</span>' : '<span style="color:#6b7a90">false</span>'; }
             const scrapeEl = $('scrapeTime');
-            if (scrapeEl) { scrapeEl.textContent = scrape ? new Date(scrape).toLocaleTimeString() : '—'; }
+            if (scrapeEl) { scrapeEl.textContent = scrape ? new Date(scrape).toLocaleTimeString() : 'ÔÇö'; }
             const badge = $('obsBackendStatus');
-            if (badge) { badge.textContent = 'backend OK · 30/min bucket separado'; badge.className = 'badge ok'; }
+            if (badge) { badge.textContent = 'backend OK ┬À 30/min bucket separado'; badge.className = 'badge ok'; }
             const raw = $('metricsRaw');
-            if (raw) { raw.textContent = 'GET ' + BACKEND + '/api/v1/observability/metrics → pending=' + pending + ' published=' + published + ' failed=' + failed + ' kafka.errors=' + errors + ' p95=' + p95.toFixed(2) + 'ms histogram=' + hist; }
+            if (raw) { raw.textContent = 'GET ' + BACKEND + '/api/v1/observability/metrics ÔåÆ pending=' + pending + ' published=' + published + ' failed=' + failed + ' kafka.errors=' + errors + ' p95=' + p95.toFixed(2) + 'ms histogram=' + hist; }
             // sync KPIs obs
             if ($('kpiPending')) $('kpiPending').textContent = String(pending);
             if ($('obsPending')) $('obsPending').textContent = String(pending);
@@ -907,16 +907,16 @@
             const rows = Array.isArray(j.logs) ? j.logs : [];
             const tbody = $('logsBody');
             if (!tbody) return;
-            if (!rows.length) { tbody.innerHTML = '<tr><td colspan="4" class="empty">Sin logs — ring vacío</td></tr>'; return; }
+            if (!rows.length) { tbody.innerHTML = '<tr><td colspan="4" class="empty">Sin logs ÔÇö ring vac├¡o</td></tr>'; return; }
             tbody.innerHTML = rows.map(e => {
                 const lvl = String(e.level || 'INFO').toUpperCase();
                 let badgeCls = 'level-INFO';
                 if (lvl === 'ERROR') badgeCls = 'level-ERROR';
                 else if (lvl === 'WARN') badgeCls = 'level-WARN';
                 else if (lvl === 'DEBUG') badgeCls = 'level-DEBUG';
-                const ts = e.timestamp ? new Date(e.timestamp).toLocaleString() : '—';
+                const ts = e.timestamp ? new Date(e.timestamp).toLocaleString() : 'ÔÇö';
                 const msg = String(e.message || '');
-                const tid = String(e.traceId || '—');
+                const tid = String(e.traceId || 'ÔÇö');
                 return `<tr><td class="mono" style="font-size:.70rem; color:#6b7a90; white-space:nowrap;">${esc(ts)}</td><td><span class="${badgeCls}">${esc(lvl)}</span></td><td>${esc(msg)}</td><td class="mono" style="font-size:.72rem; color:#93c5fd; word-break:break-all;">${esc(tid)}</td></tr>`;
             }).join('');
         }
@@ -927,16 +927,16 @@
             if (s === 'red') return { cls: 'err', label: 'RED' };
             // Prod free tier: ES es local demo (docker-compose yadinstore-cicd-demo, yadinstore-logs-2026.08.23 green 2 docs),
             // en Render no hay ES -> backend proxyea y responde unavailable/unknown. No es error rojo, es esperado -> badge amarillo.
-            if (s === 'unavailable' || s === 'unknown' || s === '—' || s === '') return { cls: 'warn', label: 'LOCAL ONLY' };
-            return { cls: 'warn', label: String(status || '—').toUpperCase() };
+            if (s === 'unavailable' || s === 'unknown' || s === 'ÔÇö' || s === '') return { cls: 'warn', label: 'LOCAL ONLY' };
+            return { cls: 'warn', label: String(status || 'ÔÇö').toUpperCase() };
         }
         function esDetailMessage(es, esStatus) {
             const s = String(esStatus || '').toLowerCase();
             // Si ES unavailable/unknown en prod free tier -> mensaje honesto, no rojo error.
-            if (s === 'unavailable' || s === 'unknown' || !esStatus || s === '—') {
-                return 'ES local demo · yadinstore-cicd-demo docker-compose (yadinstore-logs-2026.08.23 green 2 docs) · prod N/A free tier (ring 100 + Grafana Cloud roadmap)';
+            if (s === 'unavailable' || s === 'unknown' || !esStatus || s === 'ÔÇö') {
+                return 'ES local demo ┬À yadinstore-cicd-demo docker-compose (yadinstore-logs-2026.08.23 green 2 docs) ┬À prod N/A free tier (ring 100 + Grafana Cloud roadmap)';
             }
-            if (es.active_shards !== undefined) return `active ${es.active_shards} · relocating ${es.relocating_shards || 0} · initializing ${es.initializing_shards || 0} · unassigned ${es.unassigned_shards || 0} · cluster ${esc(es.cluster_name || '')}`;
+            if (es.active_shards !== undefined) return `active ${es.active_shards} ┬À relocating ${es.relocating_shards || 0} ┬À initializing ${es.initializing_shards || 0} ┬À unassigned ${es.unassigned_shards || 0} ┬À cluster ${esc(es.cluster_name || '')}`;
             if (es.error) return esc(es.error);
             return esc(esStatus);
         }
@@ -969,20 +969,20 @@
                 const isEsLocalOnly = (esStatus === 'unavailable' || esStatus === 'unknown');
                 if (hBackend) { hBackend.textContent = beStatus; hBackend.className = 'v ' + (beIsUp ? 'ok' : 'err'); }
                 if (hBackendBadge) { hBackendBadge.textContent = beIsUp ? 'UP' : beStatus; hBackendBadge.className = 'badge ' + (beIsUp ? 'ok' : 'err'); }
-                if (hBackendDetail) hBackendDetail.textContent = 'GET /actuator/health → ' + beStatus + ' · ' + (j.timestamp ? new Date(j.timestamp).toLocaleTimeString() : '');
+                if (hBackendDetail) hBackendDetail.textContent = 'GET /actuator/health ÔåÆ ' + beStatus + ' ┬À ' + (j.timestamp ? new Date(j.timestamp).toLocaleTimeString() : '');
                 // ES: si unavailable/unknown -> badge amarillo LOCAL ONLY, no rojo error (free tier honesto)
                 if (hEs) { hEs.textContent = esMeta.label; hEs.className = 'v ' + (esMeta.cls === 'ok' ? 'ok' : esMeta.cls === 'warn' ? 'warn' : esMeta.cls === 'err' ? 'err' : (isEsLocalOnly ? 'warn' : '')); }
                 if (hEsBadge) { hEsBadge.textContent = esMeta.label; hEsBadge.className = 'badge ' + (esMeta.cls || (isEsLocalOnly ? 'warn' : '')); }
                 const honestEsDetail = esDetailMessage(es, esStatusRaw);
-                const shardsTxt = isEsLocalOnly ? honestEsDetail : (es.active_shards !== undefined ? `active ${es.active_shards} · relocating ${es.relocating_shards || 0} · initializing ${es.initializing_shards || 0} · unassigned ${es.unassigned_shards || 0} · cluster ${esc(es.cluster_name || '')}` : (es.error ? esc(es.error) : esc(esStatusRaw)));
+                const shardsTxt = isEsLocalOnly ? honestEsDetail : (es.active_shards !== undefined ? `active ${es.active_shards} ┬À relocating ${es.relocating_shards || 0} ┬À initializing ${es.initializing_shards || 0} ┬À unassigned ${es.unassigned_shards || 0} ┬À cluster ${esc(es.cluster_name || '')}` : (es.error ? esc(es.error) : esc(esStatusRaw)));
                 if (hEsDetail) {
                     hEsDetail.textContent = shardsTxt;
                     // tooltip honesto si es local only
                     if (isEsLocalOnly) hEsDetail.title = 'ES solo en docker-compose local (yadinstore-cicd-demo). En Render free tier no hay ES: backend proxyea y responde unavailable. Roadmap Grafana Cloud Loki.';
                 }
                 if (hShards) hShards.textContent = shardsTxt;
-                if (healthRaw) healthRaw.textContent = 'GET ' + BACKEND + '/api/v1/observability/health → backend=' + beStatus + ' es=' + esStatusRaw + ' (' + (isEsLocalOnly ? 'prod N/A free tier' : 'cluster') + ') · ' + shardsTxt;
-                // También intenta fallback directo a /actuator/health para validar permitAll (si proxy falló por auth)
+                if (healthRaw) healthRaw.textContent = 'GET ' + BACKEND + '/api/v1/observability/health ÔåÆ backend=' + beStatus + ' es=' + esStatusRaw + ' (' + (isEsLocalOnly ? 'prod N/A free tier' : 'cluster') + ') ┬À ' + shardsTxt;
+                // Tambi├®n intenta fallback directo a /actuator/health para validar permitAll (si proxy fall├│ por auth)
                 if (!beIsUp) {
                     try {
                         const r2 = await fetch(BACKEND + '/actuator/health', { headers: { 'Accept': 'application/json' } });
@@ -998,7 +998,7 @@
                         const st = String(j2.status || 'UP');
                         if (hBackend) { hBackend.textContent = st; hBackend.className = 'v ' + (st === 'UP' ? 'ok' : 'err'); }
                         if (hBackendBadge) { hBackendBadge.textContent = st; hBackendBadge.className = 'badge ' + (st === 'UP' ? 'ok' : 'err'); }
-                        if (hBackendDetail) hBackendDetail.textContent = 'GET /actuator/health → ' + st + ' (fallback)';
+                        if (hBackendDetail) hBackendDetail.textContent = 'GET /actuator/health ÔåÆ ' + st + ' (fallback)';
                     } else {
                         if (hBackend) { hBackend.textContent = 'ERR'; hBackend.className = 'v err'; }
                         if (hBackendBadge) { hBackendBadge.textContent = 'actuator ' + r2.status; hBackendBadge.className = 'badge err'; }
@@ -1016,17 +1016,17 @@
                         const m = esBadge(st);
                         if (hEs) { hEs.textContent = m.label; hEs.className = 'v ' + (m.cls === 'ok' ? 'ok' : m.cls === 'warn' ? 'warn' : m.cls === 'err' ? 'err' : ''); }
                         if (hEsBadge) { hEsBadge.textContent = m.label; hEsBadge.className = 'badge ' + m.cls; }
-                        if (hShards) hShards.textContent = `local ES direct → active ${je.active_shards || 0} cluster ${je.cluster_name || ''}`;
+                        if (hShards) hShards.textContent = `local ES direct ÔåÆ active ${je.active_shards || 0} cluster ${je.cluster_name || ''}`;
                     }
                 } catch (_) { }
                 if (healthRaw) healthRaw.textContent = 'Health error: ' + esc(e.message);
             }
         }
-        // === Cartelito "Último dato: hace X s" — 3 bandas verde <15s, ámbar <60s, rojo OFFLINE + hint (solo textContent/esc) — SIEMPRE visible, tick cada 1s ===
+        // === Cartelito "├Ültimo dato: hace X s" ÔÇö 3 bandas verde <15s, ├ímbar <60s, rojo OFFLINE + hint (solo textContent/esc) ÔÇö SIEMPRE visible, tick cada 1s ===
         // FIX v2: clase + inline literales garantizados (nunca datos) para verde visible aunque CSS falle por especificidad/cache
         let lastSeenMs = 0;
         function applyCartelitoStyle(el, band) {
-            // solo literales, nunca datos — OWASP XSS safe
+            // solo literales, nunca datos ÔÇö OWASP XSS safe
             if (band === 'ok') { el.className = 'badge ok'; el.style.borderColor = '#22c55e'; el.style.color = '#22c55e'; el.style.background = 'rgba(34,197,94,.18)'; el.style.fontWeight = '700'; el.style.boxShadow = '0 0 14px rgba(34,197,94,.32), inset 0 0 0 1px rgba(34,197,94,.22)'; }
             else if (band === 'warn') { el.className = 'badge warn'; el.style.borderColor = '#eab308'; el.style.color = '#eab308'; el.style.background = 'rgba(234,179,8,.18)'; el.style.fontWeight = '700'; el.style.boxShadow = 'none'; }
             else { el.className = 'badge err'; el.style.borderColor = '#ef4444'; el.style.color = '#ef4444'; el.style.background = 'rgba(239,68,68,.14)'; el.style.fontWeight = '600'; el.style.boxShadow = 'none'; }
@@ -1037,29 +1037,29 @@
                 const hintEl = $('ultimoDatoHint');
                 if (!el) return;
                 if (!lastSeenMs) {
-                    el.textContent = 'Último dato: hace — s';
+                    el.textContent = '├Ültimo dato: hace ÔÇö s';
                     applyCartelitoStyle(el, 'err');
                     if (hintEl) { hintEl.textContent = '.\\jenkins-obs-agent.ps1'; hintEl.style.color = '#6b7a90'; }
                     return;
                 }
                 const deltaMs = Date.now() - lastSeenMs;
                 const secs = Math.max(0, Math.floor(deltaMs / 1000));
-                el.textContent = 'Último dato: hace ' + secs + ' s';
+                el.textContent = '├Ültimo dato: hace ' + secs + ' s';
                 if (secs < 15) {
                     applyCartelitoStyle(el, 'ok');
                     if (hintEl) { hintEl.textContent = 'ONLINE'; hintEl.style.color = '#22c55e'; hintEl.style.fontWeight = '700'; }
                 } else if (secs < 60) {
                     applyCartelitoStyle(el, 'warn');
-                    if (hintEl) { hintEl.textContent = secs + 's sin datos — chequea agente'; hintEl.style.color = '#eab308'; hintEl.style.fontWeight = '600'; }
+                    if (hintEl) { hintEl.textContent = secs + 's sin datos ÔÇö chequea agente'; hintEl.style.color = '#eab308'; hintEl.style.fontWeight = '600'; }
                 } else {
                     applyCartelitoStyle(el, 'err');
-                    if (hintEl) { hintEl.textContent = 'OFFLINE — .\\jenkins-obs-agent.ps1'; hintEl.style.color = '#ef4444'; hintEl.style.fontWeight = '600'; }
+                    if (hintEl) { hintEl.textContent = 'OFFLINE ÔÇö .\\jenkins-obs-agent.ps1'; hintEl.style.color = '#ef4444'; hintEl.style.fontWeight = '600'; }
                 }
             } catch (e) {
                 // nunca tumbar tick
             }
         }
-        // === K8s/k3d local card — verde cuando nodes 2/2 + pods 2/2 + fresco <60s ===
+        // === K8s/k3d local card ÔÇö verde cuando nodes 2/2 + pods 2/2 + fresco <60s ===
         let lastK8sCache = null;
         function renderK8s(k8s) {
             try {
@@ -1073,29 +1073,29 @@
                     if (k8s && k8s.status === 'unknown') {
                         badge.textContent = 'UNKNOWN';
                         badge.className = 'badge warn';
-                        nodesEl.textContent = 'nodes ' + esc(k8s.nodesReady || '—');
-                        podsEl.textContent = 'pods ' + esc(k8s.podsRunning || '—');
-                        if (hintEl) hintEl.textContent = 'kubectl no disponible — k3d cluster list + kubectl get nodes --context k3d-yadinstore';
+                        nodesEl.textContent = 'nodes ' + esc(k8s.nodesReady || 'ÔÇö');
+                        podsEl.textContent = 'pods ' + esc(k8s.podsRunning || 'ÔÇö');
+                        if (hintEl) hintEl.textContent = 'kubectl no disponible ÔÇö k3d cluster list + kubectl get nodes --context k3d-yadinstore';
                     } else {
                         badge.textContent = 'OFFLINE';
                         badge.className = 'badge err';
-                        // si hay dato previo, mantener último dato visible
+                        // si hay dato previo, mantener ├║ltimo dato visible
                         if (lastK8sCache && lastK8sCache.nodesReady) {
                             nodesEl.textContent = 'nodes ' + esc(lastK8sCache.nodesReady);
-                            podsEl.textContent = 'pods ' + esc(lastK8sCache.podsRunning || '—');
-                            if (hintEl) hintEl.textContent = 'último dato ' + (lastK8sCache.ts ? new Date(lastK8sCache.ts).toLocaleTimeString() : '—') + ' · k3d cluster list + kubectl get nodes';
+                            podsEl.textContent = 'pods ' + esc(lastK8sCache.podsRunning || 'ÔÇö');
+                            if (hintEl) hintEl.textContent = '├║ltimo dato ' + (lastK8sCache.ts ? new Date(lastK8sCache.ts).toLocaleTimeString() : 'ÔÇö') + ' ┬À k3d cluster list + kubectl get nodes';
                         } else {
-                            nodesEl.textContent = 'nodes —';
-                            podsEl.textContent = 'pods —';
-                            if (hintEl) hintEl.textContent = 'sin agente — .\\jenkins-obs-agent.ps1 (requiere kubectl + k3d-yadinstore)';
+                            nodesEl.textContent = 'nodes ÔÇö';
+                            podsEl.textContent = 'pods ÔÇö';
+                            if (hintEl) hintEl.textContent = 'sin agente ÔÇö .\\jenkins-obs-agent.ps1 (requiere kubectl + k3d-yadinstore)';
                         }
                     }
                     if (card) card.style.borderLeftColor = '#ef4444';
                     return;
                 }
                 lastK8sCache = k8s;
-                const nodesReady = String(k8s.nodesReady || '—');
-                const podsRunning = String(k8s.podsRunning || '—');
+                const nodesReady = String(k8s.nodesReady || 'ÔÇö');
+                const podsRunning = String(k8s.podsRunning || 'ÔÇö');
                 const ts = k8s.ts ? new Date(k8s.ts).getTime() : (lastSeenMs || Date.now());
                 const ageSec = Math.max(0, Math.floor((Date.now() - ts) / 1000));
                 const fresh = ageSec < 60;
@@ -1108,21 +1108,21 @@
                     badge.textContent = 'LIVE';
                     badge.className = 'badge ok';
                     if (card) card.style.borderLeftColor = '#22c55e';
-                    if (hintEl) hintEl.textContent = 'hace ' + ageSec + 's · ' + esc(k8s.context || 'k3d-yadinstore') + ' ✓';
+                    if (hintEl) hintEl.textContent = 'hace ' + ageSec + 's ┬À ' + esc(k8s.context || 'k3d-yadinstore') + ' Ô£ô';
                 } else if (fresh && (nodesOk || podsOk)) {
                     badge.textContent = 'WARN';
                     badge.className = 'badge warn';
                     if (card) card.style.borderLeftColor = '#eab308';
-                    if (hintEl) hintEl.textContent = 'hace ' + ageSec + 's · nodes ' + nodesReady + ' pods ' + podsRunning + ' — revisar';
+                    if (hintEl) hintEl.textContent = 'hace ' + ageSec + 's ┬À nodes ' + nodesReady + ' pods ' + podsRunning + ' ÔÇö revisar';
                 } else {
                     badge.textContent = 'OFFLINE';
                     badge.className = 'badge err';
                     if (card) card.style.borderLeftColor = '#ef4444';
-                    if (hintEl) hintEl.textContent = 'hace ' + ageSec + 's · k3d cluster list + kubectl get nodes --context k3d-yadinstore';
+                    if (hintEl) hintEl.textContent = 'hace ' + ageSec + 's ┬À k3d cluster list + kubectl get nodes --context k3d-yadinstore';
                 }
             } catch (e) { }
         }
-        // === Topología 3D live postMessage — BE-JD iframe porcelain, payload REAL sin dummy (jenkins queue/executors/jobs, obs outboxPending/kafkaPublishErrors + p95/histogram, kafka lag, containers, k8s) ===
+        // === Topolog├¡a 3D live postMessage ÔÇö BE-JD iframe porcelain, payload REAL sin dummy (jenkins queue/executors/jobs, obs outboxPending/kafkaPublishErrors + p95/histogram, kafka lag, containers, k8s) ===
         let topoFrameEl = null;
         let lastLiveCache = null;
         let obsLiveCache = null;
@@ -1143,8 +1143,8 @@
             const payload = { type: 'yadinstore-live', jenkins: { queue: Number(jenkins.queue ?? 0), executors: jenkins.executors || { busy: 0, idle: 0 }, jobs: Array.isArray(jenkins.jobs) ? jenkins.jobs : [] }, obs: { outboxPending: Number(obs.outboxPending ?? obs.outbox_pending ?? 0), kafkaPublishErrors: Number(obs.kafkaPublishErrors ?? 0), p95: p95, histogram: histogram }, kafka: { lag: Number(kafka.lag ?? 0), groups: Array.isArray(kafka.groups) ? kafka.groups : [], errors: Number(kafka.errors ?? obs.kafkaPublishErrors ?? 0) }, containers: containers, containerCount: containers.length, k8s: k8s, serverTime: lastLiveCache.serverTime || new Date().toISOString(), source: 'be-jd-jenkins-dashboard', version: 1 };
             try { frame.contentWindow.postMessage(payload, location.origin); } catch (e) { }
         }
-        // === Kafka BE-JD /api/jd/kafka — same-origin, textContent only, sanitize, lag-chart 60 polls ===
-        // Fix cold start: mantiene último dato si BE durmiendo + badge amarillo honesto
+        // === Kafka BE-JD /api/jd/kafka ÔÇö same-origin, textContent only, sanitize, lag-chart 60 polls ===
+        // Fix cold start: mantiene ├║ltimo dato si BE durmiendo + badge amarillo honesto
         let kafkaLagHistory = [];
         let lastKafkaOkData = null;
         function isHibernateMessage(msg) { return /BE durmiendo|TimeoutException|timeout\s*\d|hibernate|wake|cold start|503/i.test(String(msg || '')); }
@@ -1153,21 +1153,21 @@
                 const status = String(data.status || 'unavailable').toLowerCase();
                 let message = String(data.message || '');
                 const isHibernate = isHibernateMessage(message);
-                // guarda último ok para hibernate
+                // guarda ├║ltimo ok para hibernate
                 if (status === 'ok') {
                     try { lastKafkaOkData = JSON.parse(JSON.stringify(data)); } catch (_) { lastKafkaOkData = data; }
                 }
-                // si unavailable por hibernate y hay último dato, mantiene último dato visual (no wipe)
+                // si unavailable por hibernate y hay ├║ltimo dato, mantiene ├║ltimo dato visual (no wipe)
                 let effective = data;
                 let showingStale = false;
                 if (status !== 'ok' && isHibernate && lastKafkaOkData) {
                     effective = lastKafkaOkData;
                     showingStale = true;
                     // mensaje honesto se mantiene del data actual (hibernate), no del stale
-                    message = String(data.message || 'BE durmiendo (free tier) — reintenta en 30s');
+                    message = String(data.message || 'BE durmiendo (free tier) ÔÇö reintenta en 30s');
                 } else if (status !== 'ok' && isHibernate && !lastKafkaOkData) {
-                    // sin último dato: mensaje honesto directo
-                    message = message.includes('BE durmiendo') ? message : 'BE durmiendo (free tier) — reintenta en 30s: ' + (message || 'TimeoutException');
+                    // sin ├║ltimo dato: mensaje honesto directo
+                    message = message.includes('BE durmiendo') ? message : 'BE durmiendo (free tier) ÔÇö reintenta en 30s: ' + (message || 'TimeoutException');
                 }
                 const brokers = (effective.cluster && Array.isArray(effective.cluster.brokers)) ? effective.cluster.brokers : [];
                 const topics = Array.isArray(effective.topics) ? effective.topics : [];
@@ -1186,7 +1186,7 @@
                 if (badge) {
                     if (status === 'ok') { badge.textContent = 'OK'; badge.className = 'badge ok'; }
                     else if (status === 'not-configured') { badge.textContent = 'not-configured'; badge.className = 'badge warn'; }
-                    else if (isHibernate) { badge.textContent = 'BE durmiendo — reintenta 30s'; badge.className = 'badge warn'; }
+                    else if (isHibernate) { badge.textContent = 'BE durmiendo ÔÇö reintenta 30s'; badge.className = 'badge warn'; }
                     else { badge.textContent = 'unavailable'; badge.className = 'badge warn'; }
                     badge.title = message.slice(0, 160);
                 }
@@ -1203,15 +1203,15 @@
                         warn.style.background = 'rgba(234,179,8,.12)';
                         warn.style.borderColor = 'rgba(234,179,8,.4)';
                         if (isHibernate) {
-                            warn.textContent = message + (showingStale ? ' · mostrando último dato' : '');
+                            warn.textContent = message + (showingStale ? ' ┬À mostrando ├║ltimo dato' : '');
                         } else {
-                            warn.textContent = message || 'Kafka no disponible — free tier sleep o broker caido';
+                            warn.textContent = message || 'Kafka no disponible ÔÇö free tier sleep o broker caido';
                         }
                     } else { warn.style.display = 'none'; warn.textContent = ''; }
                 }
                 const bb = $('brokers-body');
                 if (bb) {
-                    if (!brokers.length) bb.innerHTML = '<tr><td colspan="3" class="empty">Sin brokers — ' + esc(status) + '</td></tr>';
+                    if (!brokers.length) bb.innerHTML = '<tr><td colspan="3" class="empty">Sin brokers ÔÇö ' + esc(status) + '</td></tr>';
                     else {
                         bb.innerHTML = '';
                         brokers.forEach(function (b) {
@@ -1307,9 +1307,9 @@
                 const j = await r.json();
                 renderKafka(j);
             } catch (e) {
-                // network error — keep last, badge amarillo honesto (no rojo)
-                const b = $('kafkaBadge'); if (b) { b.textContent = 'BE durmiendo — reintenta 30s'; b.className = 'badge warn'; b.title = 'Error fetch /api/jd/kafka'; }
-                const w = $('kafkaWarn'); if (w) { w.style.display = 'block'; w.style.color = '#eab308'; w.style.background = 'rgba(234,179,8,.12)'; w.style.borderColor = 'rgba(234,179,8,.4)'; w.textContent = 'BE durmiendo (free tier) — reintenta en 30s: ' + esc(e.message || String(e)) + (lastKafkaOkData ? ' · mostrando último dato' : ''); }
+                // network error ÔÇö keep last, badge amarillo honesto (no rojo)
+                const b = $('kafkaBadge'); if (b) { b.textContent = 'BE durmiendo ÔÇö reintenta 30s'; b.className = 'badge warn'; b.title = 'Error fetch /api/jd/kafka'; }
+                const w = $('kafkaWarn'); if (w) { w.style.display = 'block'; w.style.color = '#eab308'; w.style.background = 'rgba(234,179,8,.12)'; w.style.borderColor = 'rgba(234,179,8,.4)'; w.textContent = 'BE durmiendo (free tier) ÔÇö reintenta en 30s: ' + esc(e.message || String(e)) + (lastKafkaOkData ? ' ┬À mostrando ├║ltimo dato' : ''); }
                 const card = $('kafkaCard'); if (card) card.style.borderLeftColor = '#eab308';
             }
         }
