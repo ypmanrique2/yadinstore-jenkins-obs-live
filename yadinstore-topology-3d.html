@@ -14972,7 +14972,7 @@
     [data-edge-from][data-edge-to][data-active="active"]{ stroke: #22c55e !important; }
     [data-edge-from][data-edge-to][data-active="error"]{ stroke: #ef4444 !important; filter: drop-shadow(0 0 5px #ef4444); }
     [data-edge-from][data-edge-to][data-active="k8s"]{ stroke: #22c55e !important; filter: drop-shadow(0 0 6px #22c55e); }
-    html[data-embed="true"] [data-edge-from][data-edge-to][data-active]{ animation: none !important; }
+    /* FIX 2026-09-10 embed-live: allow live signal-flow in embed (?embed=1) — decorative [data-animate] stays paused, but [data-active] live must animate */
     @keyframes topology-live-dash{ to{ stroke-dashoffset: -18; } }
     /* B4 leyenda bottom-left */
     #live-legend{ position:absolute; left:0.75rem; bottom:0.75rem; z-index:14; display:flex; gap:0.4rem; align-items:center; flex-wrap:wrap; padding:0.4rem 0.6rem; border:1px solid var(--panel-border); border-radius:0.6rem; background:var(--toolbar-menu-bg); color:var(--toolbar-text); font-size:0.68rem; box-shadow:0 8px 20px rgba(0,0,0,0.22); backdrop-filter:blur(10px); }
@@ -15085,7 +15085,7 @@
         // handle XSS textContent via groupId sanitized? No innerHTML, only data-active
         // embed guard: if data-embed true, clear active (B2.2)
         if(document.documentElement.getAttribute('data-embed')==='true'){
-          // embed should not autoplay, but keep data-active for live? spec says html[data-embed="true"] sin autoplay -> we already CSS animation:none, keep active
+          // FIX 2026-09-10: embed ?embed=1 now ALLOWS live data-active animation (signal-flow), only decorative [data-animate] stays paused
         }
       }catch(e){}
     };

@@ -429,6 +429,31 @@
             fuente: <code>jenkins-obs-agent.ps1</code> → <code>POST /api/jenkins/snapshot {k8s}</code></div>
     </div>
 
+    <div class="card" style="margin-top:.2rem" id="topologia-3d-card">
+        <h2>Topología 3D — YadinStore (Prod + Local + Observabilidad) <span class="badge ok"
+                style="margin-left:.4rem;">BE-JD iframe porcelain</span> <a href="/yadinstore-topology-3d.html"
+                target="_blank" rel="noopener" style="font-size:.70rem; color:#60a5fa; margin-left:.5rem;">abrir
+                fullscreen ↗</a></h2>
+        <div style="font-size:.72rem; color:#6b7a90; margin-bottom:.6rem;">Iframe
+            <code>/yadinstore-topology-3d.html?embed=1</code> · 1378×620 trace · 3 views (request-path / observabilidad
+            / cicd-keepalive) · <code>?embed=1</code> oculta toolbar · <span style="color:#22c55e;">live postMessage
+                preparado: /api/jenkins/live 2s + /api/jd/kafka → <code>type:'yadinstore-live'</code> anima aristas s
+                cycles signal-flow motion-forward (futuro Kubernetes)</span> · same-origin (no CSP BE-KD) ·
+            <code>BE-JD Tab iframe (no BE-KD por CSP)</code></div>
+        <div style="border:1px solid #222c3d; border-radius:10px; overflow:hidden; background:#020617;">
+            <iframe id="topoFrame" src="/yadinstore-topology-3d.html?embed=1" loading="lazy"
+                title="YadinStore Topología 3D"
+                style="width:100%; height:620px; border:0; display:block; background:#020617;"
+                allow="fullscreen"></iframe>
+        </div>                <div style="margin:.45rem 0 .3rem; font-size:.66rem; color:#8b9ab0; background:rgba(34,197,94,.06); border:1px dashed #2a3547; border-radius:6px; padding:.35rem .5rem;">&#x1F4A1; <b style="color:#22c55e;">Animacion live</b> en aristas (signal-flow): visible en este embed <code>?embed=1</code> cuando <code>queue/lag/pending/active</code> &gt;0 — para vista grande con motion-forward completo abri <a href="/yadinstore-topology-3d.html?present=1" target="_blank" rel="noopener" style="color:#60a5fa; text-decoration:underline;">FULLSCREEN ?present=1</a> (S cycles). Si todo gris 65s es esperado cuando agente OFFLINE o Render dormido.</div>
+
+        <div style="margin-top:.45rem; font-size:.66rem; color:#4b5a70;">Fuente:
+            <code>yadinStore-Spec/yadinstore-topology-3d.html</code> (744KB archify 2.16, porcelain copy → BE-JD) +
+            <code>yadinstore-topology-3d-candidate.json</code> · vivo tras Kubernetes con s cycles + signal-flow
+            motion-forward · ver <code>yadinStore-Spec/avance_03-09-2026.md</code> · exploracion recomienda BE-JD Tab
+            iframe (no BE-KD por CSP)</div>
+    </div>
+
     <div class="card" id="kafkaCard" style="margin:0 0 .8rem; border-left:3px solid #22c55e;">
         <div style="display:flex; gap:.5rem; align-items:center; flex-wrap:wrap; justify-content:space-between;">
             <span style="font-size:.78rem; font-weight:700; color:#22c55e;">♨ Kafka — yadinstore.* (BE-JD via
@@ -538,30 +563,6 @@
         </div>
         <div style="margin-top:.3rem; font-size:.66rem; color:#4b5a70;">source: <code>GET /api/jd/kafka?limit=100</code>
             server-side adapter (SASL jamás browser) + <code>textContent</code> only + sanitize ***</div>
-    </div>
-
-    <div class="card" style="margin-top:.2rem" id="topologia-3d-card">
-        <h2>Topología 3D — YadinStore (Prod + Local + Observabilidad) <span class="badge ok"
-                style="margin-left:.4rem;">BE-JD iframe porcelain</span> <a href="/yadinstore-topology-3d.html"
-                target="_blank" rel="noopener" style="font-size:.70rem; color:#60a5fa; margin-left:.5rem;">abrir
-                fullscreen ↗</a></h2>
-        <div style="font-size:.72rem; color:#6b7a90; margin-bottom:.6rem;">Iframe
-            <code>/yadinstore-topology-3d.html?embed=1</code> · 1378×620 trace · 3 views (request-path / observabilidad
-            / cicd-keepalive) · <code>?embed=1</code> oculta toolbar · <span style="color:#22c55e;">live postMessage
-                preparado: /api/jenkins/live 2s + /api/jd/kafka → <code>type:'yadinstore-live'</code> anima aristas s
-                cycles signal-flow motion-forward (futuro Kubernetes)</span> · same-origin (no CSP BE-KD) ·
-            <code>BE-JD Tab iframe (no BE-KD por CSP)</code></div>
-        <div style="border:1px solid #222c3d; border-radius:10px; overflow:hidden; background:#020617;">
-            <iframe id="topoFrame" src="/yadinstore-topology-3d.html?embed=1" loading="lazy"
-                title="YadinStore Topología 3D"
-                style="width:100%; height:620px; border:0; display:block; background:#020617;"
-                allow="fullscreen"></iframe>
-        </div>
-        <div style="margin-top:.45rem; font-size:.66rem; color:#4b5a70;">Fuente:
-            <code>yadinStore-Spec/yadinstore-topology-3d.html</code> (744KB archify 2.16, porcelain copy → BE-JD) +
-            <code>yadinstore-topology-3d-candidate.json</code> · vivo tras Kubernetes con s cycles + signal-flow
-            motion-forward · ver <code>yadinStore-Spec/avance_03-09-2026.md</code> · exploracion recomienda BE-JD Tab
-            iframe (no BE-KD por CSP)</div>
     </div>
 
     <div class="agent" id="agent">
@@ -750,7 +751,7 @@
             return 'result-unknown';
         }
         // cache-buster v=hash → evita Render cache vieja; Ctrl+F5 fuerza reload si deploy lag
-        const DASHBOARD_VERSION = '2026-09-08-topology-live-flow-v1';
+        const DASHBOARD_VERSION = '2026-09-10-topology-live-flow-v2-embed-fixed';
         const FETCH_TIMEOUT_MS = 15000;
         let lastMetricsOkData = null;
         let lastHealthOkData = null;
