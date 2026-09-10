@@ -59,7 +59,7 @@ const state = {
 
 const KAFKA_ACTIVITY_URL = (process.env.KAFKA_ACTIVITY_URL || '').trim() || 'https://yadinstore-backend.onrender.com/api/v1/kafka/activity';
 const KAFKA_RATE_LIMIT_MAX = 30; // GET /api/jd/kafka por minuto por IP (bucket separado)
-const KAFKA_TIMEOUT_MS = 20000; // Aumentado a 20s para cold start de Render free tier
+const KAFKA_TIMEOUT_MS = 15000; // 15s para cold start Render free tier (30-60s wake) + retry 25s = cobre 40s total
 const rateMap = new Map(); // ip -> { count, resetAt }
 const rateMapKafka = new Map(); // bucket separado para GET /api/jd/kafka
 
@@ -328,7 +328,7 @@ const server = http.createServer((req, res) => {
   }
 
   // GET /api/jd/kafka — adapter hexagonal server-side fetch a BE (KAFKA_ACTIVITY_URL), siempre 200 idempotente
-  // Fix cold start Render free tier 30-60s: timeout 10s + retry 503/hibernate tras 2s, cache:no-store
+  // Fix cold start Render free tier 30-60s: timeout 15s + UN reintento tras 25s si 503 hibernate o timeout (como keep-warm.yml), cache:no-store, 200 fallback amarillo
   if (req.method === 'GET' && url.pathname === '/api/jd/kafka') {
     if (rateLimitedKafka(req, res)) return;
     let limit = parseInt(url.searchParams.get('limit') || '100', 10);
@@ -377,9 +377,9 @@ const server = http.createServer((req, res) => {
         const j = await up.json();
         payload = parseKafkaPayload(j);
       } catch (e) {
-        // si 503 con body no-json, tratar como hibernate retry
+        // si 503 con body no-json, tratar como hibernate retry — sleep 25s para wake 30-60s
         if (up.status === 503) {
-          await new Promise(r => setTimeout(r, 2000));
+          await new Promise(r => setTimeout(r, 25000));
           const sig2 = typeof AbortSignal.timeout === 'function' ? AbortSignal.timeout(KAFKA_TIMEOUT_MS) : undefined;
           let ctrl2; let tid2;
           if (!sig2) { ctrl2 = new AbortController(); tid2 = setTimeout(() => ctrl2.abort(), KAFKA_TIMEOUT_MS); }
@@ -399,7 +399,7 @@ const server = http.createServer((req, res) => {
         return json(res, 200, { status: 'unavailable', cluster: { clusterId: '', brokers: [] }, topics: [], consumerGroups: [], lag: 0, serverTime: new Date().toISOString(), message: sanitizeCause(e.message || 'unavailable') });
       }
       if (isHibernatePayload(payload, up.status)) {
-        await new Promise(r => setTimeout(r, 2000));
+        await new Promise(r => setTimeout(r, 25000));
         const sig2 = typeof AbortSignal.timeout === 'function' ? AbortSignal.timeout(KAFKA_TIMEOUT_MS) : undefined;
         let ctrl2; let tid2;
         if (!sig2) { ctrl2 = new AbortController(); tid2 = setTimeout(() => ctrl2.abort(), KAFKA_TIMEOUT_MS); }
@@ -421,7 +421,7 @@ const server = http.createServer((req, res) => {
       if (tid) clearTimeout(tid);
       const isTimeout = e && (e.name === 'AbortError' || e.name === 'TimeoutError');
       if (isTimeout) {
-        await new Promise(r => setTimeout(r, 2000));
+        await new Promise(r => setTimeout(r, 25000));
         const sig2 = typeof AbortSignal.timeout === 'function' ? AbortSignal.timeout(KAFKA_TIMEOUT_MS) : undefined;
         let ctrl2; let tid2;
         if (!sig2) { ctrl2 = new AbortController(); tid2 = setTimeout(() => ctrl2.abort(), KAFKA_TIMEOUT_MS); }
