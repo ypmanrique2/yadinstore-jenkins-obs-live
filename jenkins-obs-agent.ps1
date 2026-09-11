@@ -1,5 +1,5 @@
 # ================================================================
-# jenkins-obs-agent.ps1 ÔÇö Agente local Jenkins+obs (Windows)
+# jenkins-obs-agent.ps1 - Agente local Jenkins+obs (Windows)
 #
 # Fork de `yadinstore-cicd-demo/docker-live/docker-agent.ps1:17`
 # adaptado para 3 streams:
@@ -11,7 +11,7 @@
 #
 # Hace batch cada 2s POST a Render `yadinstore-jenkins-obs-live`
 # con header `x-live-token` (si DOCKER_LIVE_TOKEN definida).
-# No crashea si Jenkins/Docker ca├¡do: env├¡a snapshot parcial
+# No crashea si Jenkins/Docker caido: envia snapshot parcial
 # `status:unavailable|auth-required causeChain sanitizado`.
 #
 # Uso:
@@ -19,7 +19,7 @@
 #   .\jenkins-obs-agent.ps1 -Endpoint http://localhost:3000 -Token secret
 #   .\jenkins-obs-agent.ps1 -Endpoint https://yadinstore-jenkins-obs-live.onrender.com -Token $env:DOCKER_LIVE_TOKEN
 #   .\jenkins-obs-agent.ps1 -JenkinsUser admin -JenkinsToken $env:JENKINS_TOKEN
-#   $env:JENKINS_TOKEN="xxx"; .\jenkins-obs-agent.ps1  # token v├¡a env
+#   $env:JENKINS_TOKEN="xxx"; .\jenkins-obs-agent.ps1  # token via env
 #
 # Requiere: Docker Desktop (opcional, solo para stream), Jenkins 8081 opcional.
 # ================================================================
@@ -36,22 +36,50 @@ param(
     [string]$JenkinsToken = ""
 )
 
+# --- Carga .env vecino ($PSScriptRoot/.env) si faltan vars (los .env NO se auto-cargan) ---
+if ([string]::IsNullOrWhiteSpace($env:DOCKER_LIVE_TOKEN) -and [string]::IsNullOrWhiteSpace($Token)) {
+    $dotenvPath = Join-Path $PSScriptRoot '.env'
+    if (Test-Path -LiteralPath $dotenvPath) {
+        Get-Content -LiteralPath $dotenvPath -Encoding UTF8 | ForEach-Object {
+            $line = $_.Trim()
+            if (-not $line -or $line.StartsWith('#')) { return }
+            $idx = $line.IndexOf('=')
+            if ($idx -le 0) { return }
+            $k = $line.Substring(0, $idx).Trim()
+            $v = $line.Substring($idx + 1).Trim()
+            if ($v.Length -ge 2 -and (($v.StartsWith('"') -and $v.EndsWith('"')) -or ($v.StartsWith("'") -and $v.EndsWith("'")))) {
+                $v = $v.Substring(1, $v.Length - 2)
+            }
+            if (-not $k) { return }
+            try {
+                $existing = [System.Environment]::GetEnvironmentVariable($k)
+                if ([string]::IsNullOrEmpty($existing)) {
+                    [System.Environment]::SetEnvironmentVariable($k, $v, 'Process')
+                }
+            } catch {}
+        }
+    }
+}
+if ([string]::IsNullOrWhiteSpace($Token) -and -not [string]::IsNullOrWhiteSpace($env:DOCKER_LIVE_TOKEN)) {
+    $Token = $env:DOCKER_LIVE_TOKEN
+}
+
 $ErrorActionPreference = "Continue"
 
 # ================================================================
-# Validaci├│n estricta de credenciales 
+# Validacion estricta de credenciales 
 # ================================================================
 if ([string]::IsNullOrWhiteSpace($Token)) {
-    Write-Host "`n[FATAL] Autenticaci├│n requerida: abortando ejecuci├│n.`n" -ForegroundColor White -BackgroundColor DarkRed
+    Write-Host "`n[FATAL] Autenticacion requerida: abortando ejecucion.`n" -ForegroundColor White -BackgroundColor DarkRed
     Write-Host "El agente de observabilidad requiere la variable DOCKER_LIVE_TOKEN para interactuar con $Endpoint." -ForegroundColor Red
-    Write-Host "Soluci├│n 1 - Exporta la variable en tu sesi├│n actual:" -ForegroundColor Yellow
+    Write-Host "Solucion 1 - Exporta la variable en tu sesion actual:" -ForegroundColor Yellow
     Write-Host "  `$env:DOCKER_LIVE_TOKEN = 'tu_token_aqui'" -ForegroundColor Cyan
-    Write-Host "Soluci├│n 2 - Pasa el valor expl├¡citamente por par├ímetro:" -ForegroundColor Yellow
+    Write-Host "Solucion 2 - Pasa el valor explicitamente por parametro:" -ForegroundColor Yellow
     Write-Host "  .\jenkins-obs-agent.ps1 -Token 'tu_token_aqui'`n" -ForegroundColor Cyan
     exit 1
 }
 
-# ============ Sanitizaci├│n de causa de error para logs (evita exponer secrets) =============================================
+# ============ Sanitizacion de causa de error para logs (evita exponer secrets) =============================================
 function Sanitize-Cause([string]$s) {
     if (-not $s) { return $s }
     $v = $s.Substring(0, [Math]::Min(250, $s.Length))
@@ -95,7 +123,7 @@ function GetSafeCount($maybeArray) {
     if ($null -eq $maybeArray) { return 0 }
     if ($maybeArray -is [string]) {
         if ([string]::IsNullOrWhiteSpace($maybeArray)) { return 0 }
-        # string no vacio no es coleccion de jobs ÔÇö contar como 0 para jobs, 1 generico
+        # string no vacio no es coleccion de jobs - contar como 0 para jobs, 1 generico
         return 0
     }
     try { return @($maybeArray).Count } catch { return 0 }
@@ -156,7 +184,7 @@ if ($JenkinsUser -and $JenkinsToken) {
     $jenkinsHeaders["Authorization"] = "Basic $base64"
 }
 elseif ($JenkinsToken -and -not $JenkinsUser) {
-    Write-Host "  [warn] JENKINS_TOKEN definido pero falta JenkinsUser ÔÇö Jenkins puede dar 403. Usa -JenkinsUser admin -JenkinsToken <token> o env JENKINS_USER" -ForegroundColor Yellow
+    Write-Host "  [warn] JENKINS_TOKEN definido pero falta JenkinsUser - Jenkins puede dar 403. Usa -JenkinsUser admin -JenkinsToken <token> o env JENKINS_USER" -ForegroundColor Yellow
 }
 
 $headers = @{ "Content-Type" = "application/json" }
@@ -168,16 +196,16 @@ Write-Host " Jenkins: $JenkinsUrl | Docker: yadinstore-jenkins (label=com.docker
 Write-Host "============================================" -ForegroundColor Cyan
 Write-Host "Batch cada ${BatchIntervalSec}s, snapshot ${SnapshotIntervalSec}s. Ctrl+C para salir." -ForegroundColor Green
 if ($Token) { Write-Host " Token auth: ON" -ForegroundColor Yellow } else { Write-Host " Token auth: OFF (demo)" -ForegroundColor DarkGray }
-if ($jenkinsHeaders.Count -gt 0) { Write-Host " Jenkins auth: ON (Basic $JenkinsUser`:***, timeout 10s)" -ForegroundColor Yellow } else { Write-Host " Jenkins auth: OFF (anon, timeout 10s) ÔÇö si da 403 usa -JenkinsUser/-JenkinsToken o env JENKINS_TOKEN" -ForegroundColor DarkGray }
+if ($jenkinsHeaders.Count -gt 0) { Write-Host " Jenkins auth: ON (Basic $JenkinsUser`:***, timeout 10s)" -ForegroundColor Yellow } else { Write-Host " Jenkins auth: OFF (anon, timeout 10s) - si da 403 usa -JenkinsUser/-JenkinsToken o env JENKINS_TOKEN" -ForegroundColor DarkGray }
 
 $hasDocker = $false
 if (Get-Command docker -ErrorAction SilentlyContinue) {
     docker version > $null 2>&1
     if ($LASTEXITCODE -eq 0) { $hasDocker = $true; Write-Host " Docker: OK" -ForegroundColor Green }
-    else { Write-Host " Docker: no corriendo o sin permisos (solo Jenkins stream) ÔÇö verifica 'docker ps' y Docker Desktop est├® corriendo" -ForegroundColor Yellow }
+    else { Write-Host " Docker: no corriendo o sin permisos (solo Jenkins stream) - verifica 'docker ps' y Docker Desktop este corriendo" -ForegroundColor Yellow }
 }
 else {
-    Write-Host " docker CLI no encontrado ÔÇö solo Jenkins/metrics stream (instala Docker Desktop para eventos)" -ForegroundColor Yellow
+    Write-Host " docker CLI no encontrado - solo Jenkins/metrics stream (instala Docker Desktop para eventos)" -ForegroundColor Yellow
 }
 
 $eventBatch = [System.Collections.Generic.List[string]]::new()
@@ -209,9 +237,9 @@ try {
             $jenkinsParams = @{ Method = "Get"; Uri = "$JenkinsUrl/api/json?tree=jobs[name,lastBuild[number,result,timestamp,duration],queueItem],primaryView,overallLoad[busyExecutors,totalExecutors]"; TimeoutSec = 10; ErrorAction = "Stop" }
             if ($jenkinsHeaders.Count -gt 0) { $jenkinsParams.Headers = $jenkinsHeaders }
             $jenkinsJson = Invoke-RestMethod @jenkinsParams
-            # FIX: Guard contra "" (empty string) que venia de 401/timeout ÔÇö antes [int]"" crasheaba con "Cannot convert "" to Int32"
+            # FIX: Guard contra "" (empty string) que venia de 401/timeout - antes [int]"" crasheaba con "Cannot convert "" to Int32"
             if ($null -eq $jenkinsJson -or ($jenkinsJson -is [string] -and [string]::IsNullOrWhiteSpace($jenkinsJson))) {
-                throw "Empty Jenkins response (401/timeout) ÔÇö received empty string"
+                throw "Empty Jenkins response (401/timeout) - received empty string"
             }
             if ($jenkinsJson -is [string]) {
                 try { $jenkinsJson = $jenkinsJson | ConvertFrom-Json -ErrorAction Stop } catch { throw "Invalid Jenkins JSON string: $($_.Exception.Message)" }
@@ -229,7 +257,7 @@ try {
             $busy = ToSafeInt $busyRaw 0
             $total = ToSafeInt $totalRaw 0
             if ($total -gt 0) { $idle = [Math]::Max(0, $total - $busy) } else { $idle = 0 }
-            # queue items ÔÇö timeout 10s (aumentado de 3s para evitar Timeout 5s)
+            # queue items - timeout 10s (aumentado de 3s para evitar Timeout 5s)
             try {
                 $qParams = @{ Method = "Get"; Uri = "$JenkinsUrl/queue/api/json?tree=items[id,task[name]]"; TimeoutSec = 10; ErrorAction = "SilentlyContinue" }
                 if ($jenkinsHeaders.Count -gt 0) { $qParams.Headers = $jenkinsHeaders }
@@ -273,7 +301,7 @@ try {
             # FIX: manejar 401 y 403 como auth-required (antes solo 403)
             if ($_.Exception.Message -match "401" -or $_.Exception.Message -match "403" -or $statusCode -eq 401 -or $statusCode -eq 403) {
                 $jenkinsSnapshot = @{ queue = 0; executors = @{ busy = 0; idle = 0 }; jobs = @(); status = "auth-required"; causeChain = $cause }
-                Write-Host "  [jenkins] auth-required (401/403): $cause ÔÇö configura -JenkinsUser/-JenkinsToken o env JENKINS_TOKEN (timeout 10s)" -ForegroundColor Red
+                Write-Host "  [jenkins] auth-required (401/403): $cause - configura -JenkinsUser/-JenkinsToken o env JENKINS_TOKEN (timeout 10s)" -ForegroundColor Red
             }
             else {
                 $jenkinsSnapshot = @{ queue = 0; executors = @{ busy = 0; idle = 0 }; jobs = @(); status = "unavailable"; causeChain = $cause }
@@ -303,13 +331,13 @@ try {
                 }
                 catch {}
             }
-            # Dummy si no hay m├®trica real (estructura ok para fase1)
+            # Dummy si no hay metrica real (estructura ok para fase1)
             $obsSnapshot = @{ outboxPending = $outboxPending; kafkaPublishErrors = 0 }
             # K8s/k3d - dentro de try/catch, nunca tumba agente
             $k8sSnapshot = $null
             try { $k8sSnapshot = Get-K8sSnapshot } catch { $k8sSnapshot = @{ status = 'unknown'; context = 'k3d-yadinstore'; nodesReady = '-'; podsRunning = '-'; lastKubectlOk = $false; ts = (Get-Date).ToString('o') } }
 
-            # Docker ps snapshot peri├│dico
+            # Docker ps snapshot periodico
             if ($hasDocker) {
                 try {
                     $containers = @(docker ps --format json 2>$null | ForEach-Object { $_ | ConvertFrom-Json })
@@ -342,7 +370,7 @@ try {
         }
         else {
             # Fix 429: no POST liviano cada 2s (antes 30/min -> 429). Solo snapshot cada 10s=6/min (<15s ONLINE) + events con batch.
-            # Jenkins snapshot se incluye en el pr├│ximo snapshot completo; evita bucket POST saturado.
+            # Jenkins snapshot se incluye en el proximo snapshot completo; evita bucket POST saturado.
         }
 
         # 4) POST batch de events (si hay)
