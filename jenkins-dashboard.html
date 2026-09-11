@@ -1,12 +1,12 @@
 <!DOCTYPE html>
-<html lang="es">
+<html lang="es-419">
 
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta http-equiv="Content-Security-Policy"
         content="default-src 'self'; connect-src 'self' https://yadinstore-jenkins-obs-live.onrender.com https://yadinstore-backend.onrender.com https://ypmanrique2.github.io http://localhost:* http://127.0.0.1:*; style-src 'unsafe-inline'; script-src 'self' 'unsafe-inline'">
-    <title>YadinStore — Jenkins en vivo (CI/CD Live)</title>
+    <title>YadinStore — Jenkins + Kafka + Docker + K8s + K3d-AKS & Obeservabilidad  en vivo (CI/CD Live)</title>
     <style>
         :root {
             color-scheme: dark;
@@ -400,10 +400,45 @@
 </head>
 
 <body>
-    <h1>🔧 Jenkins en vivo <span>— YadinStore CI/CD Live</span></h1>
+    <h1>🔧 Monitor Integral en vivo <span>— Jenkins · Kafka · Prometheus · Grafana · Kibana · Kubernetes (K8s) K3d → AKS
+            · GitHub Actions CI/CD</span></h1>
     <div class="sub">Agente local → <code>docker events yadin-jenkins</code> + <code>Jenkins :8081/api/json</code> +
-        metrics → Render free tier · Poll jenkins 2s · metrics 5s · logs 10s · health 10s · 4 streams: jenkins / docker
-        / metrics / health → Observability BE-KD live</div>
+        metrics → Render free tier · Poll jenkins 2s · metrics 5s · logs 25s · health 10s · Observabilidad Integral
+        BE-JD live</div>
+
+    <div class="card" style="margin-top:.2rem" id="topologia-3d-card">
+        <h2>Topología 3D — YadinStore (Prod + Local + Observabilidad) <span class="badge ok"
+                style="margin-left:.4rem;">BE-JD iframe porcelain</span> <a href="/yadinstore-topology-3d.html"
+                target="_blank" rel="noopener" style="font-size:.70rem; color:#60a5fa; margin-left:.5rem;">abrir
+                fullscreen ↗</a></h2>
+        <div style="font-size:.72rem; color:#6b7a90; margin-bottom:.6rem;">Iframe
+            <code>/yadinstore-topology-3d.html?embed=1</code> · 1378×620 trace · 3 views (request-path / observabilidad
+            / cicd-keepalive) · <code>?embed=1</code> oculta toolbar · <span style="color:#22c55e;">live postMessage
+                preparado: /api/jenkins/live 2s + /api/jd/kafka → <code>type:'yadinstore-live'</code> anima aristas s
+                cycles signal-flow motion-forward (futuro Kubernetes)</span> · same-origin (no CSP BE-KD) ·
+            <code>BE-JD Tab iframe (no BE-KD por CSP)</code>
+        </div>
+        <div style="border:1px solid #222c3d; border-radius:10px; overflow:hidden; background:#020617;">
+            <iframe id="topoFrame" src="/yadinstore-topology-3d.html?embed=1" loading="lazy"
+                title="YadinStore Topología 3D"
+                style="width:100%; height:620px; border:0; display:block; background:#020617;"
+                allow="fullscreen"></iframe>
+        </div>
+        <div
+            style="margin:.45rem 0 .3rem; font-size:.66rem; color:#8b9ab0; background:rgba(34,197,94,.06); border:1px dashed #2a3547; border-radius:6px; padding:.35rem .5rem;">
+            &#x1F4A1; <b style="color:#22c55e;">Animacion live</b> en aristas (signal-flow): visible en este embed
+            <code>?embed=1</code> cuando <code>queue/lag/pending/active</code> &gt;0 — para vista grande con
+            motion-forward completo abri <a href="/yadinstore-topology-3d.html?present=1" target="_blank" rel="noopener"
+                style="color:#60a5fa; text-decoration:underline;">FULLSCREEN ?present=1</a> (S cycles). Si todo gris 65s
+            es esperado cuando agente OFFLINE o Render dormido.</div>
+
+        <div style="margin-top:.45rem; font-size:.66rem; color:#4b5a70;">Fuente:
+            <code>yadinStore-Spec/yadinstore-topology-3d.html</code> (744KB archify 2.16, porcelain copy → BE-JD) +
+            <code>yadinstore-topology-3d-candidate.json</code> · vivo tras Kubernetes con s cycles + signal-flow
+            motion-forward · ver <code>yadinStore-Spec/avance_03-09-2026.md</code> · exploracion recomienda BE-JD Tab
+            iframe (no BE-KD por CSP)
+        </div>
+    </div>
 
     <div id="ultimoDatoWrap"
         style="margin:.6rem 0 .6rem; display:flex; gap:.5rem; align-items:center; flex-wrap:wrap; background:rgba(17,22,31,.6); border:1px solid #1e293b; border-radius:10px; padding:.55rem .7rem;">
@@ -426,32 +461,8 @@
         </div>
         <div style="margin-top:.35rem; font-size:.68rem; color:#4b5a70;">context <code>k3d-yadinstore</code> · ns
             <code>yadinstore-dev</code> · verde cuando <code>nodes 2/2</code> + <code>pods 2/2</code> + fresco &lt;60s ·
-            fuente: <code>jenkins-obs-agent.ps1</code> → <code>POST /api/jenkins/snapshot {k8s}</code></div>
-    </div>
-
-    <div class="card" style="margin-top:.2rem" id="topologia-3d-card">
-        <h2>Topología 3D — YadinStore (Prod + Local + Observabilidad) <span class="badge ok"
-                style="margin-left:.4rem;">BE-JD iframe porcelain</span> <a href="/yadinstore-topology-3d.html"
-                target="_blank" rel="noopener" style="font-size:.70rem; color:#60a5fa; margin-left:.5rem;">abrir
-                fullscreen ↗</a></h2>
-        <div style="font-size:.72rem; color:#6b7a90; margin-bottom:.6rem;">Iframe
-            <code>/yadinstore-topology-3d.html?embed=1</code> · 1378×620 trace · 3 views (request-path / observabilidad
-            / cicd-keepalive) · <code>?embed=1</code> oculta toolbar · <span style="color:#22c55e;">live postMessage
-                preparado: /api/jenkins/live 2s + /api/jd/kafka → <code>type:'yadinstore-live'</code> anima aristas s
-                cycles signal-flow motion-forward (futuro Kubernetes)</span> · same-origin (no CSP BE-KD) ·
-            <code>BE-JD Tab iframe (no BE-KD por CSP)</code></div>
-        <div style="border:1px solid #222c3d; border-radius:10px; overflow:hidden; background:#020617;">
-            <iframe id="topoFrame" src="/yadinstore-topology-3d.html?embed=1" loading="lazy"
-                title="YadinStore Topología 3D"
-                style="width:100%; height:620px; border:0; display:block; background:#020617;"
-                allow="fullscreen"></iframe>
-        </div>                <div style="margin:.45rem 0 .3rem; font-size:.66rem; color:#8b9ab0; background:rgba(34,197,94,.06); border:1px dashed #2a3547; border-radius:6px; padding:.35rem .5rem;">&#x1F4A1; <b style="color:#22c55e;">Animacion live</b> en aristas (signal-flow): visible en este embed <code>?embed=1</code> cuando <code>queue/lag/pending/active</code> &gt;0 — para vista grande con motion-forward completo abri <a href="/yadinstore-topology-3d.html?present=1" target="_blank" rel="noopener" style="color:#60a5fa; text-decoration:underline;">FULLSCREEN ?present=1</a> (S cycles). Si todo gris 65s es esperado cuando agente OFFLINE o Render dormido.</div>
-
-        <div style="margin-top:.45rem; font-size:.66rem; color:#4b5a70;">Fuente:
-            <code>yadinStore-Spec/yadinstore-topology-3d.html</code> (744KB archify 2.16, porcelain copy → BE-JD) +
-            <code>yadinstore-topology-3d-candidate.json</code> · vivo tras Kubernetes con s cycles + signal-flow
-            motion-forward · ver <code>yadinStore-Spec/avance_03-09-2026.md</code> · exploracion recomienda BE-JD Tab
-            iframe (no BE-KD por CSP)</div>
+            fuente: <code>jenkins-obs-agent.ps1</code> → <code>POST /api/jenkins/snapshot {k8s}</code>
+        </div>
     </div>
 
     <div class="card" id="kafkaCard" style="margin:0 0 .8rem; border-left:3px solid #22c55e;">
@@ -684,7 +695,8 @@
                 id="healthUrl">https://yadinstore-backend.onrender.com/api/v1/observability/health</code> + fallback
             <code>/actuator/health</code> · local <code>http://localhost:9200/_cluster/health</code> via proxy · poll
             10s · badges green/yellow/red · <span style="color:#eab308;">ES prod N/A free tier = LOCAL ONLY amarillo (no
-                rojo)</span> · ES demo <code>yadinstore-logs-2026.08.23 green 2 docs</code> en docker-compose</div>
+                rojo)</span> · ES demo <code>yadinstore-logs-2026.08.23 green 2 docs</code> en docker-compose
+        </div>
         <div style="display:grid; grid-template-columns: repeat(2,1fr); gap:.6rem;" id="healthGrid">
             <div class="metric">
                 <div class="v" id="hBackend">—</div>
@@ -706,7 +718,8 @@
         <h2>Logs en vivo · ring 100 sanitizado *** trace demo-trace-abc123</h2>
         <div style="font-size:.72rem; color:#6b7a90; margin-bottom:.6rem;">GET /api/v1/observability/logs?limit=20 ·
             <span style="color:#22c55e">INFO</span> verde · <span style="color:#ef4444">ERROR</span> rojo · traceId mono
-            · sanitize demo · poll 10s (bucket 30/min)</div>
+            · sanitize demo · poll 10s (bucket 30/min)
+        </div>
         <div style="overflow-x:auto;">
             <table class="logs-table">
                 <thead>
@@ -730,7 +743,8 @@
         <code>yadinstore-jenkins-obs-live</code> en vivo · 100% free tier · CORS <code>ypmanrique2.github.io</code> +
         backend live · rate-limit 30/min por bucket (metrics/logs/health) · poll metrics 5s logs 10s health 10s · BE-KD
         kafka-dashboard.html style · <span style="color:#22c55e;">Topología 3D BE-JD iframe 620px + postMessage
-            live</span></footer>
+            live</span>
+    </footer>
 
     <script>
         const $ = (id) => document.getElementById(id);
@@ -776,18 +790,18 @@
             if (r.status === 429) {
                 let body = null;
                 if (isJsonContentType(ct)) { try { body = await r.json(); } catch (_) { } }
-                else { const txt = await r.text().catch(function () { return ''; }); body = { error: 'rate_limited', message: txt.slice(0,200), retryAfter: retryAfter ? Number(retryAfter) : 60 }; }
+                else { const txt = await r.text().catch(function () { return ''; }); body = { error: 'rate_limited', message: txt.slice(0, 200), retryAfter: retryAfter ? Number(retryAfter) : 60 }; }
                 const err = new Error(body && (body.error || body.message) ? (body.error || body.message) : 'rate_limited');
                 err.isRateLimit = true; err.retryAfter = Number(body && body.retryAfter ? body.retryAfter : (retryAfter ? Number(retryAfter) : 60)); err.status = 429; throw err;
             }
             if (!r.ok) {
                 const txt = await r.text().catch(function () { return ''; });
                 if (isJsonContentType(ct)) { try { const j = JSON.parse(txt); throw new Error(j.error || j.message || ('HTTP ' + r.status)); } catch (e2) { if (e2.message && e2.message.startsWith('HTTP')) throw e2; } }
-                throw new Error('HTTP ' + r.status + ': ' + txt.slice(0,120));
+                throw new Error('HTTP ' + r.status + ': ' + txt.slice(0, 120));
             }
             if (!isJsonContentType(ct)) {
                 const txt = await r.text().catch(function () { return ''; });
-                throw new Error('Unexpected content-type ' + (ct || 'unknown') + ': ' + txt.slice(0,120));
+                throw new Error('Unexpected content-type ' + (ct || 'unknown') + ': ' + txt.slice(0, 120));
             }
             return await r.json();
         }
@@ -893,7 +907,7 @@
                 }
                 const msg = String(e.message || String(e));
                 const isHibernate = isHibernateMessageFetch(msg);
-                if (badge) { badge.textContent = isHibernate ? 'BE durmiendo — reintenta en 30s' : ('backend error: ' + esc(msg.slice(0,80))); badge.className = 'badge warn'; }
+                if (badge) { badge.textContent = isHibernate ? 'BE durmiendo — reintenta en 30s' : ('backend error: ' + esc(msg.slice(0, 80))); badge.className = 'badge warn'; }
                 // conservar último dato bueno (stale) en vez de "—" eternos
                 if (lastMetricsOkData) { try { renderMetrics(lastMetricsOkData); } catch (_) { } }
             }
@@ -962,7 +976,7 @@
                 }
                 const msg = String(e.message || String(e));
                 const isHibernate = isHibernateMessageFetch(msg);
-                const honest = isHibernate ? 'BE durmiendo — reintenta en 30s' : ('Error logs: ' + esc(msg.slice(0,120)));
+                const honest = isHibernate ? 'BE durmiendo — reintenta en 30s' : ('Error logs: ' + esc(msg.slice(0, 120)));
                 if (tbody) {
                     if (lastLogsOkData) {
                         try { renderLogs(lastLogsOkData); } catch (_) { }
@@ -1084,7 +1098,7 @@
                         const m2 = String(e2.message || String(e2));
                         const isH2 = isHibernateMessageFetch(m2);
                         if (hBackend) { hBackend.textContent = isH2 ? 'BE durmiendo' : 'ERR'; hBackend.className = 'v ' + (isH2 ? 'warn' : 'err'); }
-                        if (hBackendBadge) { hBackendBadge.textContent = isH2 ? 'BE durmiendo — reintenta 30s' : esc(m2.slice(0,60)); hBackendBadge.className = 'badge ' + (isH2 ? 'warn' : 'err'); }
+                        if (hBackendBadge) { hBackendBadge.textContent = isH2 ? 'BE durmiendo — reintenta 30s' : esc(m2.slice(0, 60)); hBackendBadge.className = 'badge ' + (isH2 ? 'warn' : 'err'); }
                     }
                 }
                 // Intenta ES local directo solo si existe (dev)
@@ -1391,8 +1405,8 @@
                 // network error / Unexpected token 'T' (texto plano 429) / hibernate — keep last, badge amarillo honesto (no rojo), nunca crash
                 const msg = String(e.message || String(e));
                 const isHibernate = isHibernateMessageFetch(msg) || msg.includes('Unexpected token');
-                const b = $('kafkaBadge'); if (b) { b.textContent = isHibernate ? 'BE durmiendo — reintenta 30s' : 'rate-limit, reintento en 60s'; b.className = 'badge warn'; b.title = esc(msg.slice(0,120)); }
-                const w = $('kafkaWarn'); if (w) { w.style.display = 'block'; w.style.color = '#eab308'; w.style.background = 'rgba(234,179,8,.12)'; w.style.borderColor = 'rgba(234,179,8,.4)'; w.textContent = (isHibernate ? 'BE durmiendo (free tier) — reintenta en 30s: ' : 'rate-limit, reintento en 60s: ') + esc(msg.slice(0,120)) + (lastKafkaOkData ? ' · mostrando último dato' : ''); }
+                const b = $('kafkaBadge'); if (b) { b.textContent = isHibernate ? 'BE durmiendo — reintenta 30s' : 'rate-limit, reintento en 60s'; b.className = 'badge warn'; b.title = esc(msg.slice(0, 120)); }
+                const w = $('kafkaWarn'); if (w) { w.style.display = 'block'; w.style.color = '#eab308'; w.style.background = 'rgba(234,179,8,.12)'; w.style.borderColor = 'rgba(234,179,8,.4)'; w.textContent = (isHibernate ? 'BE durmiendo (free tier) — reintenta en 30s: ' : 'rate-limit, reintento en 60s: ') + esc(msg.slice(0, 120)) + (lastKafkaOkData ? ' · mostrando último dato' : ''); }
                 const card = $('kafkaCard'); if (card) card.style.borderLeftColor = '#eab308';
             }
         }
