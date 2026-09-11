@@ -59,7 +59,7 @@ const state = {
 
 const KAFKA_ACTIVITY_URL = (process.env.KAFKA_ACTIVITY_URL || '').trim() || 'https://yadinstore-backend.onrender.com/api/v1/kafka/activity';
 const KAFKA_RATE_LIMIT_MAX = 30; // GET /api/jd/kafka por minuto por IP (bucket separado)
-const KAFKA_TIMEOUT_MS = 15000; // 15s para cold start Render free tier (30-60s wake) + retry 25s = cobre 40s total
+const KAFKA_TIMEOUT_MS = 15000; // 15s para cold start Render free tier (30-60s wake) + retry 25s = cobre 40s total - v2
 const rateMap = new Map(); // ip -> { count, resetAt }
 const rateMapKafka = new Map(); // bucket separado para GET /api/jd/kafka
 
