@@ -852,7 +852,7 @@
                     <span class="actor">${esc((e.Actor && (e.Actor.Name || e.Actor.ID)) || e.job || e.actor || e.causeChain || '')}</span>
                 </div>`).join('');
             } else {
-                const alive = (data.lastSeen && (new Date(data.serverTime).getTime() - new Date(data.lastSeen).getTime()) < 15000);
+                const alive = (data.lastSeen && (new Date(data.serverTime).getTime() - new Date(data.lastSeen).getTime()) < 35000);
                 const agentHint = alive ? 'Agente ONLINE pero aún sin docker events/builds (normal si Jenkins idle).' : 'Agente OFFLINE — ejecutá <code>.\\jenkins-obs-agent.ps1</code> en local (requiere Docker Desktop + Jenkins :8081).';
                 $('events').innerHTML = `<div class="empty" style="line-height:1.5;">
                     <div>Sin eventos todavía — <span style="color:#eab308;">esperado en free tier si el agente no está corriendo</span></div>
@@ -1125,10 +1125,10 @@
                 const deltaMs = Date.now() - lastSeenMs;
                 const secs = Math.max(0, Math.floor(deltaMs / 1000));
                 el.textContent = 'Último dato: hace ' + secs + ' s';
-                if (secs < 15) {
+                if (secs < 35) {
                     applyCartelitoStyle(el, 'ok');
                     if (hintEl) { hintEl.textContent = 'ONLINE'; hintEl.style.color = '#22c55e'; hintEl.style.fontWeight = '700'; }
-                } else if (secs < 60) {
+                } else if (secs < 75) {
                     applyCartelitoStyle(el, 'warn');
                     if (hintEl) { hintEl.textContent = secs + 's sin datos — chequea agente'; hintEl.style.color = '#eab308'; hintEl.style.fontWeight = '600'; }
                 } else {

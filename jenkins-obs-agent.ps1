@@ -27,7 +27,7 @@
 param(
     [string]$Endpoint = "https://yadinstore-jenkins-obs-live.onrender.com",
     [string]$Token = $env:DOCKER_LIVE_TOKEN, 
-    [int]$SnapshotIntervalSec = 10,
+    [int]$SnapshotIntervalSec = 25,
     [int]$BatchIntervalSec = 2,
     [string]$JenkinsUrl = "http://localhost:8081",
     [string]$PrometheusUrl = "http://localhost:9090",
@@ -72,6 +72,9 @@ if ([string]::IsNullOrWhiteSpace($JenkinsToken) -and -not [string]::IsNullOrWhit
 }
 if ($env:JENKINS_TIMEOUT_SEC -and [int]::TryParse($env:JENKINS_TIMEOUT_SEC, [ref]$null)) {
     $JenkinsTimeoutSec = [int]$env:JENKINS_TIMEOUT_SEC
+}
+if ($env:SNAPSHOT_INTERVAL_SEC -and [int]::TryParse($env:SNAPSHOT_INTERVAL_SEC, [ref]$null)) {
+    $SnapshotIntervalSec = [int]$env:SNAPSHOT_INTERVAL_SEC
 }
 
 $ErrorActionPreference = "Continue"
@@ -207,6 +210,20 @@ Write-Host "============================================" -ForegroundColor Cyan
 Write-Host "Batch cada ${BatchIntervalSec}s, snapshot ${SnapshotIntervalSec}s. Ctrl+C para salir." -ForegroundColor Green
 if ($Token) { Write-Host " Token auth: ON" -ForegroundColor Yellow } else { Write-Host " Token auth: OFF (demo)" -ForegroundColor DarkGray }
 if ($jenkinsHeaders.Count -gt 0) { Write-Host " Jenkins auth: ON (Basic $JenkinsUser`:***, timeout ${JenkinsTimeoutSec}s)" -ForegroundColor Yellow } else { Write-Host " Jenkins auth: OFF (anon, timeout ${JenkinsTimeoutSec}s) - si da 403 usa -JenkinsUser/-JenkinsToken o env JENKINS_TOKEN" -ForegroundColor DarkGray }
+
+# --- Verificacion de conectividad y estado de Render al inicio ---
+Write-Host " Verificando conexion con Render ($Endpoint)..." -ForegroundColor DarkGray
+try {
+    $renderHealth = Invoke-RestMethod -Method Get -Uri "$Endpoint/api/jenkins/live" -TimeoutSec 10 -ErrorAction Stop
+    Write-Host " Render Backend: OK (en linea, serverTime=$($renderHealth.serverTime))" -ForegroundColor Green
+}
+catch {
+    Write-Host "`n[ALERTA] RENDER INACCESIBLE / BUILD FALLIDO" -ForegroundColor White -BackgroundColor DarkRed
+    Write-Host "  El servicio en $Endpoint no responde correctamente." -ForegroundColor Red
+    Write-Host "  Causa: $($_.Exception.Message)" -ForegroundColor Red
+    Write-Host "  Accion sugerida: Revisa el dashboard de Render > Logs / Events > Clean build cache and redeploy." -ForegroundColor Yellow
+    Write-Host "  El agente continuara intentando enviar datos en segundo plano.`n" -ForegroundColor DarkGray
+}
 
 $hasDocker = $false
 if (Get-Command docker -ErrorAction SilentlyContinue) {
@@ -358,7 +375,7 @@ try {
                             Write-Host "  [snapshot] queue:$($jenkinsSnapshot.queue) busy:$($jenkinsSnapshot.executors.busy) idle:$($jenkinsSnapshot.executors.idle) containers:$($containers.Count) outbox:$outboxPending k8s:$($k8sSnapshot.nodesReady)/$($k8sSnapshot.podsRunning) ctx:$($k8sSnapshot.context)" -ForegroundColor DarkGray
                         }
                         catch {
-                            Write-Host "  [snapshot] error: $($_.Exception.Message)" -ForegroundColor Yellow
+                            Write-Host "  [snapshot] FALLO POST a Render: $($_.Exception.Message) - Verifica build/logs en render.com" -ForegroundColor Red
                         }
                     }
                 }
@@ -374,7 +391,7 @@ try {
                     Write-Host "  [snapshot] queue:$($jenkinsSnapshot.queue) busy:$($jenkinsSnapshot.executors.busy) outbox:$outboxPending k8s:$($k8sSnapshot.nodesReady)/$($k8sSnapshot.podsRunning) (sin docker) ctx:$($k8sSnapshot.context)" -ForegroundColor DarkGray
                 }
                 catch {
-                    Write-Host "  [snapshot] error: $($_.Exception.Message)" -ForegroundColor Yellow
+                    Write-Host "  [snapshot] FALLO POST a Render: $($_.Exception.Message) - Verifica build/logs en render.com" -ForegroundColor Red
                 }
             }
         }
