@@ -1,4 +1,4 @@
-# ================================================================
+﻿# ================================================================
 # jenkins-obs-agent.ps1 - Agente local Jenkins+obs (Windows)
 #
 # Fork de `yadinstore-cicd-demo/docker-live/docker-agent.ps1:17`
@@ -33,7 +33,8 @@ param(
     [string]$PrometheusUrl = "http://localhost:9090",
     [string]$ActuatorUrl = "http://localhost:8080",
     [string]$JenkinsUser = "",
-    [string]$JenkinsToken = ""
+    [string]$JenkinsToken = "",
+    [int]$JenkinsTimeoutSec = 20
 )
 
 # --- Carga .env vecino ($PSScriptRoot/.env) si faltan vars (los .env NO se auto-cargan) ---
@@ -62,6 +63,15 @@ if ([string]::IsNullOrWhiteSpace($env:DOCKER_LIVE_TOKEN) -and [string]::IsNullOr
 }
 if ([string]::IsNullOrWhiteSpace($Token) -and -not [string]::IsNullOrWhiteSpace($env:DOCKER_LIVE_TOKEN)) {
     $Token = $env:DOCKER_LIVE_TOKEN
+}
+if ([string]::IsNullOrWhiteSpace($JenkinsUser) -and -not [string]::IsNullOrWhiteSpace($env:JENKINS_USER)) {
+    $JenkinsUser = $env:JENKINS_USER
+}
+if ([string]::IsNullOrWhiteSpace($JenkinsToken) -and -not [string]::IsNullOrWhiteSpace($env:JENKINS_TOKEN)) {
+    $JenkinsToken = $env:JENKINS_TOKEN
+}
+if ($env:JENKINS_TIMEOUT_SEC -and [int]::TryParse($env:JENKINS_TIMEOUT_SEC, [ref]$null)) {
+    $JenkinsTimeoutSec = [int]$env:JENKINS_TIMEOUT_SEC
 }
 
 $ErrorActionPreference = "Continue"
@@ -196,7 +206,7 @@ Write-Host " Jenkins: $JenkinsUrl | Docker: yadinstore-jenkins (label=com.docker
 Write-Host "============================================" -ForegroundColor Cyan
 Write-Host "Batch cada ${BatchIntervalSec}s, snapshot ${SnapshotIntervalSec}s. Ctrl+C para salir." -ForegroundColor Green
 if ($Token) { Write-Host " Token auth: ON" -ForegroundColor Yellow } else { Write-Host " Token auth: OFF (demo)" -ForegroundColor DarkGray }
-if ($jenkinsHeaders.Count -gt 0) { Write-Host " Jenkins auth: ON (Basic $JenkinsUser`:***, timeout 10s)" -ForegroundColor Yellow } else { Write-Host " Jenkins auth: OFF (anon, timeout 10s) - si da 403 usa -JenkinsUser/-JenkinsToken o env JENKINS_TOKEN" -ForegroundColor DarkGray }
+if ($jenkinsHeaders.Count -gt 0) { Write-Host " Jenkins auth: ON (Basic $JenkinsUser`:***, timeout ${JenkinsTimeoutSec}s)" -ForegroundColor Yellow } else { Write-Host " Jenkins auth: OFF (anon, timeout ${JenkinsTimeoutSec}s) - si da 403 usa -JenkinsUser/-JenkinsToken o env JENKINS_TOKEN" -ForegroundColor DarkGray }
 
 $hasDocker = $false
 if (Get-Command docker -ErrorAction SilentlyContinue) {
@@ -234,7 +244,7 @@ try {
         # 2) Fetch Jenkins queue/executors/jobs (cada BatchIntervalSec, no crashea si cae)
         $jenkinsSnapshot = $null
         try {
-            $jenkinsParams = @{ Method = "Get"; Uri = "$JenkinsUrl/api/json?tree=jobs[name,lastBuild[number,result,timestamp,duration],queueItem],primaryView,overallLoad[busyExecutors,totalExecutors]"; TimeoutSec = 10; ErrorAction = "Stop" }
+            $jenkinsParams = @{ Method = "Get"; Uri = "$JenkinsUrl/api/json?tree=jobs[name,lastBuild[number,result,timestamp,duration],queueItem],primaryView,overallLoad[busyExecutors,totalExecutors]"; TimeoutSec = $JenkinsTimeoutSec; ErrorAction = "Stop" }
             if ($jenkinsHeaders.Count -gt 0) { $jenkinsParams.Headers = $jenkinsHeaders }
             $jenkinsJson = Invoke-RestMethod @jenkinsParams
             # FIX: Guard contra "" (empty string) que venia de 401/timeout - antes [int]"" crasheaba con "Cannot convert "" to Int32"
@@ -257,9 +267,9 @@ try {
             $busy = ToSafeInt $busyRaw 0
             $total = ToSafeInt $totalRaw 0
             if ($total -gt 0) { $idle = [Math]::Max(0, $total - $busy) } else { $idle = 0 }
-            # queue items - timeout 10s (aumentado de 3s para evitar Timeout 5s)
+            # queue items - timeout dinamico segun $JenkinsTimeoutSec
             try {
-                $qParams = @{ Method = "Get"; Uri = "$JenkinsUrl/queue/api/json?tree=items[id,task[name]]"; TimeoutSec = 10; ErrorAction = "SilentlyContinue" }
+                $qParams = @{ Method = "Get"; Uri = "$JenkinsUrl/queue/api/json?tree=items[id,task[name]]"; TimeoutSec = $JenkinsTimeoutSec; ErrorAction = "SilentlyContinue" }
                 if ($jenkinsHeaders.Count -gt 0) { $qParams.Headers = $jenkinsHeaders }
                 $q = Invoke-RestMethod @qParams
                 if ($null -ne $q -and -not ($q -is [string] -and [string]::IsNullOrWhiteSpace($q)) -and $q.PSObject.Properties['items'] -and $null -ne $q.items) {
@@ -301,7 +311,7 @@ try {
             # FIX: manejar 401 y 403 como auth-required (antes solo 403)
             if ($_.Exception.Message -match "401" -or $_.Exception.Message -match "403" -or $statusCode -eq 401 -or $statusCode -eq 403) {
                 $jenkinsSnapshot = @{ queue = 0; executors = @{ busy = 0; idle = 0 }; jobs = @(); status = "auth-required"; causeChain = $cause }
-                Write-Host "  [jenkins] auth-required (401/403): $cause - configura -JenkinsUser/-JenkinsToken o env JENKINS_TOKEN (timeout 10s)" -ForegroundColor Red
+                Write-Host "  [jenkins] auth-required (401/403): $cause - configura -JenkinsUser/-JenkinsToken o env JENKINS_TOKEN (timeout ${JenkinsTimeoutSec}s)" -ForegroundColor Red
             }
             else {
                 $jenkinsSnapshot = @{ queue = 0; executors = @{ busy = 0; idle = 0 }; jobs = @(); status = "unavailable"; causeChain = $cause }
@@ -344,7 +354,7 @@ try {
                     if ($containers -or $true) {
                         $payload = @{ jenkins = $jenkinsSnapshot; containers = $containers; obs = $obsSnapshot; k8s = $k8sSnapshot } | ConvertTo-Json -Depth 6 -Compress
                         try {
-                            Invoke-RestMethod -Method Post -Uri "$Endpoint/api/jenkins/snapshot" -Headers $headers -Body $payload -TimeoutSec 10 | Out-Null
+                            Invoke-RestMethod -Method Post -Uri "$Endpoint/api/jenkins/snapshot" -Headers $headers -Body $payload -TimeoutSec 15 | Out-Null
                             Write-Host "  [snapshot] queue:$($jenkinsSnapshot.queue) busy:$($jenkinsSnapshot.executors.busy) idle:$($jenkinsSnapshot.executors.idle) containers:$($containers.Count) outbox:$outboxPending k8s:$($k8sSnapshot.nodesReady)/$($k8sSnapshot.podsRunning) ctx:$($k8sSnapshot.context)" -ForegroundColor DarkGray
                         }
                         catch {
@@ -360,7 +370,7 @@ try {
                 # Sin docker, igual POST snapshot jenkins+obs
                 $payload = @{ jenkins = $jenkinsSnapshot; obs = $obsSnapshot; k8s = $k8sSnapshot } | ConvertTo-Json -Depth 6 -Compress
                 try {
-                    Invoke-RestMethod -Method Post -Uri "$Endpoint/api/jenkins/snapshot" -Headers $headers -Body $payload -TimeoutSec 10 | Out-Null
+                    Invoke-RestMethod -Method Post -Uri "$Endpoint/api/jenkins/snapshot" -Headers $headers -Body $payload -TimeoutSec 15 | Out-Null
                     Write-Host "  [snapshot] queue:$($jenkinsSnapshot.queue) busy:$($jenkinsSnapshot.executors.busy) outbox:$outboxPending k8s:$($k8sSnapshot.nodesReady)/$($k8sSnapshot.podsRunning) (sin docker) ctx:$($k8sSnapshot.context)" -ForegroundColor DarkGray
                 }
                 catch {
