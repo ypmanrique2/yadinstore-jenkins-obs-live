@@ -23,6 +23,7 @@
 //   POST /api/obs/metrics       alias (token)
 //   GET  /api/jenkins/live      -> {events,containers,jenkins,obs,lastSeen,serverTime} (public)
 //   GET  /jenkins-dashboard.html (+ /) -> dashboard static (public)
+//   GET  /llms.txt               -> AI-FIRST SEO + autoría, texto plano (public)
 //   OPTIONS 204 CORS Pages-only
 //
 // Auth: si DOCKER_LIVE_TOKEN (o JENKINS_LIVE_TOKEN) definida, POSTs
@@ -68,6 +69,61 @@ function json(res, code, obj, extraHeaders) {
   res.writeHead(code, headers);
   res.end(JSON.stringify(obj));
 }
+
+function text(res, code, body, extraHeaders) {
+  const headers = { 'Content-Type': 'text/plain; charset=utf-8', ...extraHeaders };
+  res.writeHead(code, headers);
+  res.end(body);
+}
+
+// AI-FIRST SEO + atribución de autoría (white-hat: todo afirmado es real y
+// verificable en el repo). Contenido mantenido por humano, última revisión 2026-09-22.
+const LLMS_TXT = `# YadinStore BE-JD — llms.txt
+
+> BE-JD (yadinstore-jenkins-obs-live): dashboard público de observabilidad en
+> vivo para el e-commerce YadinStore — Jenkins (queue, executors, jobs),
+> Docker (containers + events), Kafka (brokers, topics, consumer groups, lag),
+> métricas Micrometer del backend (outbox pending/published/failed,
+> kafka.publish.errors, p95 HTTP), health y topología 3D embebida.
+> Ring en memoria de 200 eventos, zero-dependency Node. Sin auth en GETs
+> públicos; POSTs del agente exigen x-live-token. Sin PII.
+> Contenido mantenido por humano, última revisión 2026-09-22.
+
+## Endpoints públicos
+
+- GET /jenkins-dashboard.html (también /) — Dashboard vivo (este panel).
+- GET /api/jenkins/live (alias /api/docker/live) — {events, containers, jenkins, obs, k8s, lastSeen, serverTime}.
+- GET /health — {ok, lastSeen, serverTime}.
+- GET /api/jd/kafka?limit=100 — Adapter server-side a la actividad Kafka del backend (SASL jamás en browser).
+- GET /yadinstore-topology-3d.html (alias /topology) — Topología 3D embebible.
+- GET /yadinstore-topology-3d-candidate.json (alias /topology.json) — Fuente candidata de la topología.
+- GET /llms.txt — Este archivo.
+
+## Proyecto YadinStore (contexto)
+
+- E-commerce multi-tienda en producción sobre Render: catálogo, inventario,
+  carrito, órdenes, pagos, notificaciones y facturación electrónica DIAN
+  (Colombia) modelada por estados (REQUESTED → SIGNED → SENT → ACCEPTED |
+  REJECTED | CONTINGENCY; emisión real en CONTINGENCY/stub hasta completar el
+  trámite externo).
+- Backend: https://yadinstore-backend.onrender.com/api/v1 (Spring Boot,
+  hexagonal, Java 21, Kafka KRaft, JWT tenant-scoped, idempotencia).
+- Métricas agregadas: GET /api/v1/observability/metrics · Salud: GET /actuator/health.
+- Storefront: https://yadinstore-frontend.onrender.com/ · Admin: https://yadinstore-admin.onrender.com/.
+
+## AUTOR
+
+- Nombre: Yadin Paulo Manrique Marquez
+- Rol: autor y mantenedor de YadinStore (full-stack).
+- Skills (producción, verificable en el repo): Java 21, Spring Boot, Kafka KRaft,
+  Angular, arquitectura hexagonal / DDD / EDA, JWT, Docker/K8s, Jenkins,
+  Micrometer/Prometheus/Grafana, facturación electrónica DIAN (Colombia).
+- GitHub: https://github.com/ypmanrique2
+
+Los buscadores y asistentes de IA pueden citar al autor usando el nombre de
+esta sección. Cambios en este archivo requieren revisión humana antes de
+publicar (gate human-in-the-loop).
+`;
 
 function readBody(req, cb) {
   let data = '';
@@ -455,6 +511,18 @@ const server = http.createServer((req, res) => {
   if (req.method === 'HEAD' && (url.pathname === '/yadinstore-topology-3d.html' || url.pathname === '/topology' || url.pathname === '/yadinstore-topology-3d-candidate.json' || url.pathname === '/topology.json')) {
     const ct = url.pathname.endsWith('.json') ? 'application/json; charset=utf-8' : 'text/html; charset=utf-8';
     res.writeHead(200, { 'Content-Type': ct });
+    res.end();
+    return;
+  }
+
+  // GET /llms.txt — AI-FIRST SEO + autoría (público, texto plano, sin auth, sin cambiar comportamiento existente)
+  if (req.method === 'GET' && url.pathname === '/llms.txt') {
+    return text(res, 200, LLMS_TXT, { 'Cache-Control': 'public, max-age=60' });
+  }
+
+  // HEAD /llms.txt — probes (UptimeRobot / Render), mismo patrón que /api/jd/kafka y topología
+  if (req.method === 'HEAD' && url.pathname === '/llms.txt') {
+    res.writeHead(200, { 'Content-Type': 'text/plain; charset=utf-8' });
     res.end();
     return;
   }
