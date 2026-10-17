@@ -583,6 +583,29 @@
             server-side adapter (SASL jamás browser) + <code>textContent</code> only + sanitize ***</div>
     </div>
 
+    <div class="card" id="rabbitCard" style="margin:0 0 .8rem; border-left:3px solid #f97316;">
+        <div style="display:flex; gap:.5rem; align-items:center; flex-wrap:wrap; justify-content:space-between;">
+            <span style="font-size:.78rem; font-weight:700; color:#f97316;">🐇 RabbitMQ — colas (BE via /api/v1/observability/metrics)</span>
+            <span id="rabbitBadge" class="badge">loading…</span>
+            <span style="font-size:.70rem; color:#6b7a90;">poll 5s · caché BE 5s · solo lectura</span>
+        </div>
+        <div class="kpis" style="margin-top:.6rem;">
+            <div class="kpi"><div class="v" id="kpi-rq-queues">—</div><div class="l">colas</div></div>
+            <div class="kpi"><div class="v" id="kpi-rq-ready">—</div><div class="l">ready</div></div>
+            <div class="kpi"><div class="v" id="kpi-rq-consumers">—</div><div class="l">consumers</div></div>
+        </div>
+        <table style="width:100%; margin-top:.5rem; font-size:.74rem;">
+            <thead><tr><th align="left">cola</th><th align="left">ready</th><th align="left">consumers</th><th align="left">estado</th></tr></thead>
+            <tbody id="rabbitQueues"><tr><td colspan="4" class="empty">Cargando…</td></tr></tbody>
+        </table>
+        <h2 style="font-size:.75rem; margin:.6rem 0 .4rem;">Ready history (60 polls)</h2>
+        <svg id="rq-chart" width="100%" height="80" viewBox="0 0 600 80"
+            style="background:#0b0e14; border:1px solid #222c3d; border-radius:8px; display:block;"></svg>
+        <div id="rabbitWarn"
+            style="display:none; margin-top:.5rem; font-size:.72rem; color:#eab308; background:rgba(234,179,8,.12); border:1px solid rgba(234,179,8,.4); border-radius:6px; padding:.4rem .6rem;">
+        </div>
+    </div>
+
     <div class="agent" id="agent">
         <span class="dot off" id="dot"></span>
         <span id="agentText">Esperando al agente…</span>
@@ -959,6 +982,87 @@
             if ($('kpiPending')) $('kpiPending').textContent = String(pending);
             if ($('obsPending')) $('obsPending').textContent = String(pending);
             if ($('obsErrors')) $('obsErrors').textContent = String(errors);
+            renderRabbitMq(d.rabbitmq, scrape);
+        }
+        let rabbitReadyHistory = [];
+        let lastRabbitScrape = '';
+        function drawRabbitHistory(values) {
+            const svg = $('rq-chart');
+            if (!svg || !values.length) return;
+            const max = Math.max(1, ...values);
+            const width = 600, height = 80;
+            const step = values.length > 1 ? width / (values.length - 1) : width;
+            const points = values.map((value, index) =>
+                (index * step).toFixed(1) + ',' + (height - 4 - (value / max) * (height - 8)).toFixed(1)
+            ).join(' ');
+            svg.textContent = '';
+            const line = document.createElementNS('http://www.w3.org/2000/svg', 'polyline');
+            line.setAttribute('points', points);
+            line.setAttribute('fill', 'none');
+            line.setAttribute('stroke', '#f97316');
+            line.setAttribute('stroke-width', '2');
+            svg.appendChild(line);
+        }
+        function renderRabbitMq(rabbit, scrapeTime) {
+            const data = rabbit || {};
+            const status = String(data.status || 'unavailable').toLowerCase();
+            const queues = Array.isArray(data.queues) ? data.queues.slice(0, 20) : [];
+            const ready = queues.reduce((sum, queue) => sum + (Number(queue.ready) || 0), 0);
+            const consumers = queues.reduce((sum, queue) => sum + (Number(queue.consumers) || 0), 0);
+            const setText = (id, value) => {
+                const element = $(id);
+                if (element) element.textContent = String(value);
+            };
+            setText('kpi-rq-queues', queues.length);
+            setText('kpi-rq-ready', ready);
+            setText('kpi-rq-consumers', consumers);
+
+            const badge = $('rabbitBadge');
+            if (badge) {
+                badge.textContent = status === 'ok' ? 'OK' : status;
+                badge.className = 'badge ' + (status === 'ok' ? 'ok' : 'warn');
+                badge.title = String(data.message || '').slice(0, 160);
+            }
+            const card = $('rabbitCard');
+            if (card) card.style.borderLeftColor = status === 'ok' ? '#22c55e' : '#eab308';
+            const warning = $('rabbitWarn');
+            if (warning) {
+                const show = status !== 'ok';
+                warning.style.display = show ? 'block' : 'none';
+                warning.textContent = show ? String(data.message || 'RabbitMQ no disponible') : '';
+            }
+
+            const table = $('rabbitQueues');
+            if (table) {
+                table.textContent = '';
+                if (!queues.length) {
+                    const row = document.createElement('tr');
+                    const cell = document.createElement('td');
+                    cell.colSpan = 4;
+                    cell.className = 'empty';
+                    cell.textContent = status === 'not-configured' ? 'RabbitMQ desactivado o sin colas configuradas' : 'Sin datos de colas';
+                    row.appendChild(cell);
+                    table.appendChild(row);
+                } else {
+                    queues.forEach(queue => {
+                        const row = document.createElement('tr');
+                        [queue.name, queue.ready, queue.consumers, queue.exists === false ? 'missing' : 'OK']
+                            .forEach(value => {
+                                const cell = document.createElement('td');
+                                cell.textContent = String(value ?? '');
+                                row.appendChild(cell);
+                            });
+                        table.appendChild(row);
+                    });
+                }
+            }
+
+            if ((status === 'ok' || status === 'degraded') && scrapeTime && scrapeTime !== lastRabbitScrape) {
+                lastRabbitScrape = scrapeTime;
+                rabbitReadyHistory.push(ready);
+                if (rabbitReadyHistory.length > 60) rabbitReadyHistory = rabbitReadyHistory.slice(-60);
+                drawRabbitHistory(rabbitReadyHistory);
+            }
         }
         async function fetchLogs() {
             // timeout honesto para "Cargando logs…" inicial

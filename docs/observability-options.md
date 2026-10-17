@@ -32,7 +32,8 @@ OTEL_EXPORTER_OTLP_ENDPOINT=https://otlp-gateway-prod-us-central-0.grafana.net/o
 **Cuando usar:** quieres 0 costo, 0 vendor, 0 config, <50MB, free tier siempre, demo/local, volatil aceptado.
 
 **Como funciona:** `back-end/src/main/java/com/yadinstore/shared/infrastructure/web/ObservabilityController.java` + `ObservabilityLogBuffer.java` (ring 100, como `yadinstore-jenkins-obs-live/server.js:28` ring 200).
-- `GET /api/v1/observability/metrics` → agregados `{outbox:{pending,published,failed}, kafka:{errors}, http:{p95}}` sin PII/email/token, desde `OutboxEventDocumentRepository.countByStatus(PENDING)` + `MeterRegistry` + `http.server.requests` max, CORS Pages-only `https://ypmanrique2.github.io`, rate-limit 10/min.
+- `GET /api/v1/observability/metrics` → agregados `{outbox:{pending,published,failed}, kafka:{errors}, http:{p95}, rabbitmq:{status,queues}}` sin PII/email/token; rate-limit 30/min.
+- RabbitMQ informa disponibilidad y por cola `{name,exists,ready,consumers}`. El muestreo es asíncrono y cacheado 5 s para no bloquear `/metrics`; `RABBITMQ_ENABLED=true` lo activa y `RABBITMQ_OBSERVED_QUEUES` permite definir las colas (por defecto, las cuatro colas declaradas por el BE). `not-configured`, `warming-up`, `stale`, `degraded` y `unavailable` se reportan explícitamente. Como el endpoint de métricas es público, solo se deben configurar nombres de cola apropiados para exponer.
 - `GET /api/v1/observability/logs?traceId=&level=&limit=50` → ring 100 volatile, filter level/traceId, sanitize 250 `password=*** token=*** secret=*** ***@***`, last 100 entries newest first, <50MB RAM, sin Cloud, sin DB.
 
 **Persistencia:** volatil — Render free sleep 15m pierde ring (igual que jenkins-obs-live). Ventana ring 100 logs ~400s si 1 log/4s. Mitigado UptimeRobot 5m en jenkins-obs-live, pero BE ring igual se pierde. **ILM no aplica** (no hay indice), **UptimeRobot no necesita** para BE metrics (Grafana Cloud persist es alternativa).
@@ -106,5 +107,4 @@ docker compose config | grep grafana -A2
 **Gateway BE Fase3 (actualizado):** `SecurityConfig.java:214` `hasAnyAuthority('ROLE_VIEWER','ROLE_ADMIN')` + `@PreAuthorize` en `ObservabilityController.java:77,123` (T301) — Pages necesitará `Authorization: Bearer <VIEWER_JWT>` en T304.
 
 **Free tier:** dashboard JSON `<14KB`, 7 panels `<10k series` Prometheus free tier, no rompe compose, no secrets.
-
 
