@@ -623,6 +623,8 @@
             Última ruta: <code id="redisDecision">sin actividad de chat</code>
             <span style="margin-left:.5rem;">· fallbacks keyword Mongo: <code id="redisKeywordFallbacks">—</code></span>
             <span style="margin-left:.5rem;">· última actividad: <code id="redisLastActivity">—</code></span>
+            <span style="margin-left:.5rem;">· TLS: <code id="redisTls">—</code></span>
+            <span style="margin-left:.5rem;">· último error: <code id="redisFailureCategory">—</code></span>
         </div>
         <div style="margin-top:.35rem; font-size:.66rem; color:#4b5a70;">
             Los contadores son desde el arranque de la instancia. Estado Redis = última operación del chat, no disponibilidad sondeada.
@@ -1013,6 +1015,7 @@
             const enabled = data.enabled === true;
             const status = String(data.redisStatus || 'unknown').toLowerCase();
             const irisEnabled = data.irisEnabled === true;
+            const failureCategory = String(data.lastRedisFailureCategory || 'none').toLowerCase();
             const label = {
                 redis_hit: 'Redis hit',
                 redis_miss_mongo: 'Redis miss → búsqueda Mongo',
@@ -1025,6 +1028,17 @@
                 redis_disabled_mongo_keyword_fallback: 'Redis deshabilitado → Mongo keyword fallback',
                 no_chat_activity: 'sin actividad de chat',
                 telemetry_unavailable: 'telemetría no disponible'
+            };
+            const failureLabel = {
+                authentication_failed: 'autenticación (revisar usuario/clave)',
+                tls_error: 'TLS (revisar configuración del proveedor)',
+                dns_resolution: 'DNS/host',
+                connection_refused: 'conexión rechazada/puerto',
+                timeout: 'timeout/red o allowlist',
+                connection_error: 'conexión',
+                command_error: 'comando/compatibilidad',
+                unknown: 'causa no clasificada',
+                none: 'ninguno'
             };
             const setText = (id, value) => {
                 const element = $(id);
@@ -1059,6 +1073,8 @@
             setText('redisKeywordFallbacks', data.mongoKeywordFallbacks ?? '—');
             const lastActivity = data.lastActivityAt ? new Date(data.lastActivityAt).toLocaleTimeString() : '—';
             setText('redisLastActivity', lastActivity);
+            setText('redisTls', data.redisTlsEnabled === true ? 'habilitado' : 'deshabilitado');
+            setText('redisFailureCategory', failureLabel[failureCategory] || 'causa no clasificada');
             const card = $('redisCard');
             if (card) {
                 card.style.borderLeftColor = status === 'unavailable' ? '#ef4444'
