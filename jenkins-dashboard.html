@@ -606,6 +606,29 @@
         </div>
     </div>
 
+    <div class="card" id="redisCard" style="margin:0 0 .8rem; border-left:3px solid #a78bfa;">
+        <div style="display:flex; gap:.5rem; align-items:center; flex-wrap:wrap; justify-content:space-between;">
+            <span style="font-size:.78rem; font-weight:700; color:#a78bfa;">Redis semántico — actividad del chat BE</span>
+            <span id="redisBadge" class="badge">esperando telemetría…</span>
+            <span id="redisIrisBadge" class="badge">Iris —</span>
+            <span style="font-size:.70rem; color:#6b7a90;">poll 5s · solo eventos reales de chat · sin probes Redis</span>
+        </div>
+        <div class="kpis" style="margin-top:.6rem;">
+            <div class="kpi"><div class="v" id="kpi-redis-hits">—</div><div class="l">cache hits</div></div>
+            <div class="kpi"><div class="v" id="kpi-redis-misses">—</div><div class="l">cache misses</div></div>
+            <div class="kpi"><div class="v" id="kpi-redis-mongo">—</div><div class="l">búsquedas Mongo</div></div>
+            <div class="kpi"><div class="v" id="kpi-redis-fallbacks">—</div><div class="l">Redis caído → Mongo</div></div>
+        </div>
+        <div style="font-size:.72rem; color:#94a3b8;">
+            Última ruta: <code id="redisDecision">sin actividad de chat</code>
+            <span style="margin-left:.5rem;">· fallbacks keyword Mongo: <code id="redisKeywordFallbacks">—</code></span>
+            <span style="margin-left:.5rem;">· última actividad: <code id="redisLastActivity">—</code></span>
+        </div>
+        <div style="margin-top:.35rem; font-size:.66rem; color:#4b5a70;">
+            Los contadores son desde el arranque de la instancia. Estado Redis = última operación del chat, no disponibilidad sondeada.
+        </div>
+    </div>
+
     <div class="agent" id="agent">
         <span class="dot off" id="dot"></span>
         <span id="agentText">Esperando al agente…</span>
@@ -948,6 +971,7 @@
             const outbox = d.outbox || {};
             const kafka = d.kafka || {};
             const httpM = d.http || {};
+            renderSemanticCache(d.semanticCache);
             const pending = Number(outbox.pending ?? 0);
             const published = Number(outbox.published ?? 0);
             const failed = Number(outbox.failed ?? 0);
@@ -983,6 +1007,63 @@
             if ($('obsPending')) $('obsPending').textContent = String(pending);
             if ($('obsErrors')) $('obsErrors').textContent = String(errors);
             renderRabbitMq(d.rabbitmq, scrape);
+        }
+        function renderSemanticCache(cache) {
+            const data = cache || {};
+            const enabled = data.enabled === true;
+            const status = String(data.redisStatus || 'unknown').toLowerCase();
+            const irisEnabled = data.irisEnabled === true;
+            const label = {
+                redis_hit: 'Redis hit',
+                redis_miss_mongo: 'Redis miss → búsqueda Mongo',
+                redis_unavailable_mongo: 'Redis no disponible → búsqueda Mongo',
+                redis_disabled_mongo: 'Redis deshabilitado → búsqueda Mongo',
+                mongo_served_redis_write_failed: 'Mongo respondió; falló escritura Redis',
+                mongo_keyword_fallback: 'Mongo keyword fallback',
+                redis_miss_mongo_keyword_fallback: 'Redis miss → Mongo keyword fallback',
+                redis_unavailable_mongo_keyword_fallback: 'Redis falló → Mongo keyword fallback',
+                redis_disabled_mongo_keyword_fallback: 'Redis deshabilitado → Mongo keyword fallback',
+                no_chat_activity: 'sin actividad de chat',
+                telemetry_unavailable: 'telemetría no disponible'
+            };
+            const setText = (id, value) => {
+                const element = $(id);
+                if (element) element.textContent = String(value);
+            };
+            const badge = $('redisBadge');
+            if (badge) {
+                if (!enabled || status === 'disabled') {
+                    badge.textContent = 'cache deshabilitada';
+                    badge.className = 'badge warn';
+                } else if (status === 'available') {
+                    badge.textContent = 'Redis observado disponible';
+                    badge.className = 'badge ok';
+                } else if (status === 'unavailable') {
+                    badge.textContent = 'última operación Redis falló';
+                    badge.className = 'badge err';
+                } else {
+                    badge.textContent = 'sin operación Redis observada';
+                    badge.className = 'badge warn';
+                }
+            }
+            const irisBadge = $('redisIrisBadge');
+            if (irisBadge) {
+                irisBadge.textContent = irisEnabled ? 'Iris habilitado' : 'Iris deshabilitado';
+                irisBadge.className = 'badge ' + (irisEnabled ? 'warn' : 'ok');
+            }
+            setText('kpi-redis-hits', data.hits ?? '—');
+            setText('kpi-redis-misses', data.misses ?? '—');
+            setText('kpi-redis-mongo', data.mongoSearches ?? '—');
+            setText('kpi-redis-fallbacks', data.redisUnavailableFallbacks ?? '—');
+            setText('redisDecision', label[String(data.lastDecision || 'no_chat_activity')] || 'ruta registrada');
+            setText('redisKeywordFallbacks', data.mongoKeywordFallbacks ?? '—');
+            const lastActivity = data.lastActivityAt ? new Date(data.lastActivityAt).toLocaleTimeString() : '—';
+            setText('redisLastActivity', lastActivity);
+            const card = $('redisCard');
+            if (card) {
+                card.style.borderLeftColor = status === 'unavailable' ? '#ef4444'
+                    : status === 'available' ? '#22c55e' : '#a78bfa';
+            }
         }
         let rabbitReadyHistory = [];
         let lastRabbitScrape = '';

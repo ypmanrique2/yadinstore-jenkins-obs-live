@@ -83,8 +83,8 @@ const LLMS_TXT = `# YadinStore BE-JD — llms.txt
 > BE-JD (yadinstore-jenkins-obs-live): dashboard público de observabilidad en
 > vivo para el e-commerce YadinStore — Jenkins (queue, executors, jobs),
 > Docker (containers + events), Kafka (brokers, topics, consumer groups, lag),
-> métricas Micrometer del backend (outbox pending/published/failed,
-> kafka.publish.errors, p95 HTTP), health y topología 3D embebida.
+> métricas agregadas del backend (outbox, p95 HTTP y actividad Redis/Mongo
+> del chat, sin consultas ni tenant IDs), health y topología 3D embebida.
 > Ring en memoria de 200 eventos, zero-dependency Node. Sin auth en GETs
 > públicos; POSTs del agente exigen x-live-token. Sin PII.
 > Contenido mantenido por humano, última revisión 2026-09-22.
